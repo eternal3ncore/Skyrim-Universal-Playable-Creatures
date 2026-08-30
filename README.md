@@ -87,7 +87,7 @@ Race-definition format:
 
 Additional `*.json` files using the same format may be added to the same folder without recompiling the DLL.
 
-The packaged race catalogs now contain the current exhaustive test definitions: 64 Skyrim/DLC creature races, 223 Oblivion-converted races, and 68 Morroblivion races. Ordinary vanilla playable humanoid races remain excluded.
+The packaged race catalogs now contain the current exhaustive test definitions: 122 Skyrim/DLC creature races, 223 Oblivion-converted races, and 68 Morroblivion races. Ordinary vanilla playable humanoid races remain excluded.
 
 Race-definition files may use readable JSONC-style `//` or `/* ... */` comments. v0.1.5 parses the `playableRaces` array structurally, so brackets inside comments such as `[EditorID]` no longer truncate the array.
 
