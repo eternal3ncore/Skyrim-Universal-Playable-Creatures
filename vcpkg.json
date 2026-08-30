@@ -1,0 +1,7 @@
+{
+  "name": "universal-playable-creatures",
+  "version-string": "0.1.6",
+  "dependencies": [
+    "commonlibsse-ng-flatrim"
+  ]
+}
