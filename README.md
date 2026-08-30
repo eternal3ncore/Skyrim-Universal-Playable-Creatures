@@ -24,7 +24,7 @@ Universal Playable Creatures combines four creature-player runtime features into
 3. **Creature Spell Hand Restriction**
    - Keeps ordinary spells as ordinary spells.
    - Restricts their equip side while the configured creature policy is active.
-   - Default: Skyrim creatures = Left, TES4-converted creatures = Right.
+   - Default: Skyrim creatures = Left, TES4-converted creatures = Right. This stops the graph from getting stuck, as some creatures simple should not have a spell equipped in a certain hand.
    - Valid policies are `Left`, `Right`, and `Both`.
    - Original equip slots exist only in DLL memory and are restored when the restriction is inactive; nothing is serialized into the save.
 
