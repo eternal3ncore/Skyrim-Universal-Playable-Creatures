@@ -2,7 +2,7 @@
 
 ## v0.1.6 race-catalog update
 
-`Skyrim.json` is rebuilt from the supplied full Skyrim/Dawnguard/Dragonborn RACE export instead of the older 64-entry hand-maintained list. It contains 122 creature and creature-variant races. This also corrects the Armored Husky FormID and includes all four exported Husky race variants. `Oblivion.json` remains at 223 entries and `Morroblivion.json` at 68 entries.
+`Skyrim.json` is rebuilt from the supplied full Skyrim/Dawnguard/Dragonborn RACE export. It contains 122 creature and creature-variant races. This also corrects the Armored Husky FormID and includes all four exported Husky race variants. `Oblivion.json` remains at 223 entries and `Morroblivion.json` at 68 entries.
 
 
 Source-available SKSE/CommonLibSSE-NG plugin for Skyrim AE 1.6.1170.
@@ -13,7 +13,6 @@ Universal Playable Creatures combines four creature-player runtime features into
 
 1. **Creature RaceMenu Crash Fix**
    - Preserves the signature-guarded RaceMenu crash safeguards from the confirmed Creature Race Menu Crash Fix lineage.
-   - Playable race definitions are no longer stored in the main configuration.
    - At DataLoaded the plugin scans only `Data\SKSE\Plugins\UniversalPlayableCreatures\` for `*.json` race-definition files.
    - Every race-definition JSON uses the existing `playableRaces` array with `PluginName.esm|FORMID` entries.
 
@@ -92,27 +91,6 @@ The packaged race catalogs now contain the current exhaustive test definitions: 
 
 Race-definition files may use readable JSONC-style `//` or `/* ... */` comments. v0.1.5 parses the `playableRaces` array structurally, so brackets inside comments such as `[EditorID]` no longer truncate the array.
 
-## Build
-
-Extract to:
-
-```powershell
-C:\Games\Skyrim\ChatGPT Projects\UniversalPlayableCreatures_v0_1_6
-```
-
-Build with:
-
-```powershell
-cd "C:\Games\Skyrim\ChatGPT Projects\UniversalPlayableCreatures_v0_1_6"
-powershell -ExecutionPolicy Bypass -File .\build.ps1
-```
-
-Expected DLL:
-
-```text
-build\Release\UniversalPlayableCreatures.dll
-```
-
 Install:
 
 ```text
@@ -122,9 +100,6 @@ Data\SKSE\Plugins\UniversalPlayableCreatures\Skyrim.json
 Data\SKSE\Plugins\UniversalPlayableCreatures\Oblivion.json
 Data\SKSE\Plugins\UniversalPlayableCreatures\Morroblivion.json
 ```
-
-Remove or disable the four older standalone DLLs when testing the combined plugin so the same behavior is not applied twice.
-
 Expected log:
 
 ```text
