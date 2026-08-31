@@ -202,7 +202,8 @@ namespace UCCCore
 $ucc = Get-Content -LiteralPath $uccSource -Raw
 $ucc = Replace-Exact $ucc 'UniversalCreatureControls.json' 'UniversalPlayableCreatures.json' 'UCC config path'
 
-$loaderPattern = '(?s)SKSEPluginLoad\(const SKSE::LoadInterface\* skse\)\s*\{\s*SKSE::Init\(skse\);\s*SetupLog\(\);\s*LoadConfig\(\);(?<body>.*?)\n\}'
+# Anchor at EOF so nested braces inside SKSEPluginLoad cannot terminate the match.
+$loaderPattern = '(?s)SKSEPluginLoad\(const SKSE::LoadInterface\* skse\)\s*\{\s*SKSE::Init\(skse\);\s*SetupLog\(\);\s*LoadConfig\(\);(?<body>.*?)\n\}\s*$'
 $m = [regex]::Match($ucc, $loaderPattern)
 if (-not $m.Success) {
     throw 'Merge transform failed: UCC SKSEPluginLoad block not found'
