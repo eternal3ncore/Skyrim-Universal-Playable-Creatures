@@ -17,28 +17,10 @@ namespace UPC::RaceCatalog
             std::ranges::transform(value, value.begin(), [](unsigned char c) {
                 return static_cast<char>(std::tolower(c));
             });
-            if (value == "left") {
-                return HandPolicy::kLeft;
-            }
-            if (value == "right") {
-                return HandPolicy::kRight;
-            }
-            if (value == "both") {
-                return HandPolicy::kBoth;
-            }
+            if (value == "left") return HandPolicy::kLeft;
+            if (value == "right") return HandPolicy::kRight;
+            if (value == "both") return HandPolicy::kBoth;
             return std::nullopt;
-        }
-
-        const char* PolicyName(HandPolicy policy)
-        {
-            switch (policy) {
-            case HandPolicy::kLeft:
-                return "Left";
-            case HandPolicy::kRight:
-                return "Right";
-            default:
-                return "Both";
-            }
         }
 
         RE::TESRace* ResolveRace(std::string_view spec)
@@ -60,7 +42,7 @@ namespace UPC::RaceCatalog
             return nullptr;
         }
 
-        void LoadFile(const std::filesystem::path& path)
+        void LoadFile(const std::filesystem::path& path, bool applyPlayableFlags)
         {
             std::ifstream file(path, std::ios::binary);
             if (!file) {
@@ -113,9 +95,13 @@ namespace UPC::RaceCatalog
                 ++fileResolved;
 
                 const bool playable = item.value("playable", false);
-                if (playable) {
+                if (playable && applyPlayableFlags) {
                     race->data.flags.set(RE::RACE_DATA::Flag::kPlayable);
                     ++filePlayable;
+                } else if (playable && !applyPlayableFlags) {
+                    logger::warn(
+                        "Race catalog [{}] requested playable=true for {}, but RaceMenu crash protection is disabled; playable flag not applied",
+                        path.filename().string(), spec);
                 }
 
                 const auto handIt = item.find("spellHand");
@@ -132,12 +118,12 @@ namespace UPC::RaceCatalog
             }
 
             logger::info(
-                "Race catalog [{}]: entries={} resolved={} playable={} spellPolicies={}",
+                "Race catalog [{}]: entries={} resolved={} playableApplied={} spellPolicies={}",
                 path.filename().string(), fileEntries, fileResolved, filePlayable, filePolicies);
         }
     }
 
-    void Load()
+    void Load(bool applyPlayableFlags)
     {
         g_spellHands.clear();
         g_entryCount = 0;
@@ -152,16 +138,12 @@ namespace UPC::RaceCatalog
 
         std::vector<std::filesystem::path> files;
         for (std::filesystem::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
-            if (!it->is_regular_file()) {
-                continue;
-            }
+            if (!it->is_regular_file()) continue;
             auto ext = it->path().extension().string();
             std::ranges::transform(ext, ext.begin(), [](unsigned char c) {
                 return static_cast<char>(std::tolower(c));
             });
-            if (ext == ".json") {
-                files.push_back(it->path());
-            }
+            if (ext == ".json") files.push_back(it->path());
         }
 
         if (ec) {
@@ -171,32 +153,23 @@ namespace UPC::RaceCatalog
 
         std::ranges::sort(files);
         for (const auto& path : files) {
-            LoadFile(path);
+            LoadFile(path, applyPlayableFlags);
         }
 
         logger::info(
-            "Race catalogs loaded: files={} entries={} resolved={} spellPolicies={}",
-            files.size(), g_entryCount, g_resolvedCount, g_spellHands.size());
+            "Race catalogs loaded: files={} entries={} resolved={} spellPolicies={} playableApplication={}",
+            files.size(), g_entryCount, g_resolvedCount, g_spellHands.size(), applyPlayableFlags);
     }
 
     std::optional<HandPolicy> GetSpellHand(const RE::TESRace* race)
     {
-        if (!race) {
-            return std::nullopt;
-        }
+        if (!race) return std::nullopt;
         if (const auto it = g_spellHands.find(race); it != g_spellHands.end()) {
             return it->second;
         }
         return std::nullopt;
     }
 
-    std::size_t EntryCount()
-    {
-        return g_entryCount;
-    }
-
-    std::size_t ResolvedCount()
-    {
-        return g_resolvedCount;
-    }
+    std::size_t EntryCount() { return g_entryCount; }
+    std::size_t ResolvedCount() { return g_resolvedCount; }
 }
