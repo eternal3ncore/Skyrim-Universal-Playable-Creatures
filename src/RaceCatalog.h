@@ -13,7 +13,7 @@ namespace UPC
 
     namespace RaceCatalog
     {
-        void Load();
+        void Load(bool applyPlayableFlags);
         std::optional<HandPolicy> GetSpellHand(const RE::TESRace* race);
         std::size_t EntryCount();
         std::size_t ResolvedCount();
