@@ -1,34 +1,35 @@
 #include "PCH.h"
+#include "RaceCatalog.h"
+
+namespace UCCCore
+{
+    bool Initialize(const SKSE::LoadInterface* skse);
+}
 
 namespace
 {
-    constexpr REL::Version kPluginVersion{ 0, 1, 6, 0 };
+    constexpr REL::Version kPluginVersion{ 0, 2, 0, 0 };
     constexpr auto kPluginName = "UniversalPlayableCreatures"sv;
     constexpr auto kConfigPath = "Data/SKSE/Plugins/UniversalPlayableCreatures.json"sv;
     constexpr auto kRaceConfigDir = "Data/SKSE/Plugins/UniversalPlayableCreatures"sv;
     constexpr char kRaceMenuName[] = "RaceSex Menu";
     constexpr char kCamName[] = "Camera3rd [Cam3]";
 
-    enum class HandPolicy
-    {
-        kLeft,
-        kRight,
-        kBoth
-    };
+    using HandPolicy = UPC::HandPolicy;
 
     struct Config
     {
         bool enableRaceMenuCrashFix{ true };
         bool enableCameraNode{ true };
         bool enableSpellHandRestriction{ true };
-        bool enableHideSheathedWeapons{ true };
+
+        // The merged UCC core exclusively owns weapon visibility.  This legacy
+        // UPC field is deliberately hard-disabled so only one subsystem can cull
+        // and restore BipedAnim weapon clones.
+        bool enableHideSheathedWeapons{ false };
 
         float cameraNodeHeightZ{ 121.0f };
-
-        bool enableCreatureRacesForSpellHandRestriction{ true };
-        bool enablePlayableHumanoidRacesForSpellHandRestriction{ false };
-        HandPolicy skyrimCreatureSpellHand{ HandPolicy::kLeft };
-        HandPolicy convertedTES4CreatureSpellHand{ HandPolicy::kRight };
+        HandPolicy playableHumanoidSpellHand{ HandPolicy::kBoth };
 
     };
 
@@ -297,22 +298,20 @@ namespace
         if (const auto v = ReadJsonBool(text, "EnableCreatureRaceMenuCrashFix")) g_config.enableRaceMenuCrashFix = *v;
         if (const auto v = ReadJsonBool(text, "EnableThirdPersonCameraNode")) g_config.enableCameraNode = *v;
         if (const auto v = ReadJsonBool(text, "EnableCreatureSpellHandRestriction")) g_config.enableSpellHandRestriction = *v;
-        if (const auto v = ReadJsonBool(text, "EnableHideSheathedWeapons")) g_config.enableHideSheathedWeapons = *v;
         if (const auto v = ReadJsonFloat(text, "CameraNodeHeightZ")) g_config.cameraNodeHeightZ = *v;
-        if (const auto v = ReadJsonBool(text, "EnablePlayableHumanoidRacesForSpellHandRestriction")) g_config.enablePlayableHumanoidRacesForSpellHandRestriction = *v;
-        if (const auto v = ReadJsonBool(text, "EnableCreatureRacesForSpellHandRestriction")) g_config.enableCreatureRacesForSpellHandRestriction = *v;
-        if (const auto v = ReadJsonString(text, "SkyrimCreatureSpellHand")) {
-            if (const auto policy = ParseHandPolicy(*v)) g_config.skyrimCreatureSpellHand = *policy;
-        }
-        if (const auto v = ReadJsonString(text, "ConvertedTES4CreatureSpellHand")) {
-            if (const auto policy = ParseHandPolicy(*v)) g_config.convertedTES4CreatureSpellHand = *policy;
+        if (const auto v = ReadJsonString(text, "PlayableHumanoidSpellHand")) {
+            if (const auto policy = ParseHandPolicy(*v)) {
+                g_config.playableHumanoidSpellHand = *policy;
+            } else {
+                logger::warn("Invalid PlayableHumanoidSpellHand='{}'; using Both", *v);
+            }
         }
 
-        logger::info("Config loaded: RaceMenuCrashFix={} CameraNode={} SpellHandRestriction={} HideSheathedWeapons={}",
+        logger::info("Config loaded: RaceMenuCrashFix={} CameraNode={} SpellHandRestriction={} HumanoidSpellHand={}",
             g_config.enableRaceMenuCrashFix,
             g_config.enableCameraNode,
             g_config.enableSpellHandRestriction,
-            g_config.enableHideSheathedWeapons);
+            PolicyName(g_config.playableHumanoidSpellHand));
     }
 
     namespace RaceMenuFix
@@ -620,14 +619,17 @@ namespace
             const bool playable = race->data.flags.any(RE::RACE_DATA::Flag::kPlayable);
 
             if (!faceGen) {
-                if (!g_config.enableCreatureRacesForSpellHandRestriction) {
-                    return { false, HandPolicy::kBoth };
+                // Creature handedness is explicit per race.  Missing rows are
+                // intentionally unrestricted rather than guessed from origin.
+                if (const auto policy = UPC::RaceCatalog::GetSpellHand(race)) {
+                    return { *policy != HandPolicy::kBoth, *policy };
                 }
-                return { true, IsConvertedTES4Race(race) ? g_config.convertedTES4CreatureSpellHand : g_config.skyrimCreatureSpellHand };
+                return { false, HandPolicy::kBoth };
             }
 
-            if (playable && g_config.enablePlayableHumanoidRacesForSpellHandRestriction) {
-                return { true, HandPolicy::kBoth };
+            // Humanoids do not need catalog rows.  Both is the default/no-op.
+            if (playable && g_config.playableHumanoidSpellHand != HandPolicy::kBoth) {
+                return { true, g_config.playableHumanoidSpellHand };
             }
 
             return { false, HandPolicy::kBoth };
@@ -1021,7 +1023,7 @@ namespace
         switch (message->type) {
         case SKSE::MessagingInterface::kDataLoaded:
             LoadConfig();
-            RaceMenuFix::ApplyPlayableRaceConfig();
+            UPC::RaceCatalog::Load(g_config.enableRaceMenuCrashFix);
             RegisterSinks();
             RaceMenuFix::ApplyHooks();
             SpellHandRestriction::RefreshPlayerState("DataLoaded");
@@ -1065,10 +1067,16 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
 
     auto* messaging = SKSE::GetMessagingInterface();
     if (!messaging || !messaging->RegisterListener(MessageHandler)) {
-        logger::critical("Failed to register SKSE messaging listener");
+        logger::critical("Failed to register UPC SKSE messaging listener");
         return false;
     }
 
-    logger::info("SKSE messaging registered; no save serialization is used");
+    if (!UCCCore::Initialize(skse)) {
+        logger::critical("Universal Creature Controls core initialization failed");
+        return false;
+    }
+
+    logger::info("Merged UPC/UCC messaging registered; no save serialization is used");
     return true;
 }
+
