@@ -1,37 +1,22 @@
-# Universal Playable Creatures v0.1.6
-
-## v0.1.6 race-catalog update
-
-`Skyrim.json` is rebuilt from the supplied full Skyrim/Dawnguard/Dragonborn RACE export. It contains 122 creature and creature-variant races. This also corrects the Armored Husky FormID and includes all four exported Husky race variants. `Oblivion.json` remains at 223 entries and `Morroblivion.json` at 68 entries.
-
+# Universal Playable Creatures v0.2.0
 
 Source-available SKSE/CommonLibSSE-NG plugin for Skyrim AE 1.6.1170.
 
-Universal Playable Creatures combines four creature-player runtime features into one DLL. Each feature is independently optional in the main JSON and enabled by default.
+Universal Playable Creatures now includes the Universal Creature Controls runtime core in the same DLL. The merge deliberately keeps one SKSE entry point, one logger, one base configuration, and one owner for each runtime feature.
 
-## Included features
+## Merged architecture
 
-1. **Creature RaceMenu Crash Fix**
-   - Preserves the signature-guarded RaceMenu crash safeguards from the confirmed Creature Race Menu Crash Fix lineage.
-   - At DataLoaded the plugin scans only `Data\SKSE\Plugins\UniversalPlayableCreatures\` for `*.json` race-definition files.
-   - Every race-definition JSON uses the existing `playableRaces` array with `PluginName.esm|FORMID` entries.
+`UniversalPlayableCreatures.dll` provides:
 
-2. **3rd-Person Camera Node**
-   - Injects `Camera3rd [Cam3]` into creature player 3D when needed.
-   - Event-driven injection occurs on race changes, player 3D reload, RaceMenu transitions, and new/load game.
-   - Third-person camera binding is retried only in response to the mapped Toggle POV input; no timer thread or polling loop is used.
+- Creature RaceMenu crash protection and runtime playable-race registration.
+- 3rd-person creature camera-node support.
+- Per-race creature spell-hand restriction plus an optional global humanoid spell-hand preference.
+- Universal creature combat controls: attack-data-driven normal attacks, Sneak power attacks, blocking, spell/shout fallback synchronization, crafting interception, and traversal/collision fallback.
+- Creature weapon-visibility handling, including the established unsupported-weapon and sheathed-weapon paths.
 
-3. **Creature Spell Hand Restriction**
-   - Keeps ordinary spells as ordinary spells.
-   - Restricts their equip side while the configured creature policy is active.
-   - Default: Skyrim creatures = Left, TES4-converted creatures = Right. This stops the graph from getting stuck, as some creatures simple should not have a spell equipped in a certain hand.
-   - Valid policies are `Left`, `Right`, and `Both`.
-   - Original equip slots exist only in DLL memory and are restored when the restriction is inactive; nothing is serialized into the save.
+The controls core is internal to this DLL. A separate `UniversalCreatureControls.dll` is not part of the merged runtime.
 
-4. **Hide Sheathed Weapons**
-   - Hides native BipedAnim weapon clones after a creature player finishes sheathing and restores them when drawing begins.
-   - On load, race switch, and player 3D reload, the plugin derives desired visibility from the engine's current `WEAPON_STATE` rather than a plugin-owned save boolean.
-   - No SKSE serialization, save-baked state, timer, or polling loop is used.
+The implementation remains event-driven. It does not add save serialization, background polling, worker timers, delayed input replay, or persistent plugin-owned combat state.
 
 ## Configuration
 
@@ -41,57 +26,83 @@ Install the main config as:
 Data\SKSE\Plugins\UniversalPlayableCreatures.json
 ```
 
-Default main configuration:
+Default configuration:
 
 ```json
 {
   "EnableCreatureRaceMenuCrashFix": true,
   "EnableThirdPersonCameraNode": true,
-  "EnableCreatureSpellHandRestriction": true,
-  "EnableHideSheathedWeapons": true,
-
   "CameraNodeHeightZ": 121.0,
 
-  "EnablePlayableHumanoidRacesForSpellHandRestriction": false,
-  "EnableCreatureRacesForSpellHandRestriction": true,
-  "SkyrimCreatureSpellHand": "Left",
-  "ConvertedTES4CreatureSpellHand": "Right"
+  "EnableCreatureSpellHandRestriction": true,
+  "PlayableHumanoidSpellHand": "Both",
+
+  "EnableHideUnsupportedEquippedWeapons": true,
+  "EnableHideSheathedWeapons": true
 }
 ```
 
-Playable race definitions belong only in:
+`PlayableHumanoidSpellHand` accepts `Both`, `Left`, or `Right`. `Both` is the default and imposes no restriction on ordinary playable humanoid races. Creature handedness is not guessed from origin; it is read from each creature's race-catalog row.
+
+`EnableCreatureSpellHandRestriction` is the master switch for runtime spell-hand orientation. There is intentionally no separate `EnableCreatureRacesForSpellHandRestriction` setting.
+
+## Race catalogs
+
+Race definitions belong only in:
 
 ```text
 Data\SKSE\Plugins\UniversalPlayableCreatures\
 ```
 
-The package includes:
-
-```text
-UniversalPlayableCreatures\Skyrim.json
-UniversalPlayableCreatures\Oblivion.json
-UniversalPlayableCreatures\Morroblivion.json
-```
-
-The DLL scans only that namespaced subfolder. It does not enumerate unrelated JSON files elsewhere in `SKSE\Plugins`.
-
-Race-definition format:
+The DLL scans `*.json` files in that folder non-recursively and in deterministic filename order. Catalog files use an object-based schema so playability and runtime handedness are independent:
 
 ```json
 {
-  "playableRaces": [
-    "SomePlugin.esm|00123456"
+  "schemaVersion": 2,
+  "format": "UniversalPlayableCreaturesRaceCatalog",
+  "races": [
+    {
+      "race": "SomePlugin.esm|00123456",
+      "playable": false,
+      "spellHand": "Left"
+    }
   ]
 }
 ```
 
-Additional `*.json` files using the same format may be added to the same folder without recompiling the DLL.
+`playable: false` leaves the race unavailable in RaceMenu while retaining its runtime metadata. This is the release-safe default. `spellHand` accepts `Left`, `Right`, or `Both`. If a creature has no catalog row or no valid `spellHand`, UPC leaves its spell equip side unrestricted rather than applying an origin-based guess.
 
-The packaged race catalogs now contain the current exhaustive test definitions: 122 Skyrim/DLC creature races, 223 Oblivion-converted races, and 68 Morroblivion races. Ordinary vanilla playable humanoid races remain excluded.
+JSONC-style comments are accepted. Invalid or unresolved rows are isolated and logged instead of preventing the remaining files from loading.
 
-Race-definition files may use readable JSONC-style `//` or `/* ... */` comments. v0.1.5 parses the `playableRaces` array structurally, so brackets inside comments such as `[EditorID]` no longer truncate the array.
+The established catalog inventories are 122 Skyrim/Dawnguard/Dragonborn creature and variant races, 223 Oblivion-converted races, and 68 Morroblivion races, for 413 cataloged race records total. Ordinary vanilla playable humanoid races do not require catalog rows for the optional `PlayableHumanoidSpellHand` setting.
 
-Install:
+## Runtime feature notes
+
+### RaceMenu protection
+
+The AE 1.6.1170 RaceMenu safeguards retain their signature validation before installing the protected hooks. Playable flags are applied only to catalog rows explicitly set to `playable: true`.
+
+### Camera node
+
+For creature players, UPC injects `Camera3rd [Cam3]` only when needed. Race changes, player 3D rebuilds, RaceMenu transitions, and mapped POV input provide event-driven synchronization; no camera polling loop is used.
+
+### Spell hand restriction
+
+UPC temporarily changes the equip slot of known ordinary spells while a restriction is active and restores the original slots when it is not. Nothing is serialized into the save. Creature policy comes from the current race's catalog row; humanoid policy comes only from `PlayableHumanoidSpellHand`.
+
+Concentration spell behavior remains a known limitation of creature casting and should not be assumed equivalent to normal humanoid concentration casting.
+
+### Universal creature controls
+
+The merged controls core preserves the established data/event-driven model: race-local `BGSAttackData` is discovered on race activation, physical attacks use authored attack events and authentic HitFrames, and action-scoped payloads are cleared on termination/interruption. Converted TES4 attack-family compatibility remains isolated from unrelated native attack families.
+
+Werewolf, Vampire Lord, and Werebear retain their dedicated vanilla behavior systems and are excluded from ordinary UPC creature combat/traversal intervention; the established crafting interception exception is preserved.
+
+### Weapon visibility
+
+Only the controls core owns runtime weapon-clone culling in the merged DLL. The older independent UPC sheathed-weapon implementation is not simultaneously active, preventing two subsystems from competing to hide/restore the same `BipedAnim` clones.
+
+## Install layout
 
 ```text
 Data\SKSE\Plugins\UniversalPlayableCreatures.dll
@@ -100,12 +111,19 @@ Data\SKSE\Plugins\UniversalPlayableCreatures\Skyrim.json
 Data\SKSE\Plugins\UniversalPlayableCreatures\Oblivion.json
 Data\SKSE\Plugins\UniversalPlayableCreatures\Morroblivion.json
 ```
+
 Expected log:
 
 ```text
 Documents\My Games\Skyrim Special Edition\SKSE\UniversalPlayableCreatures.log
 ```
 
+For the merged build, remove/disable a separately installed `UniversalCreatureControls.dll` so the same controls are not registered twice.
+
+## Development status
+
+v0.2.0 is the first merged UPC/UCC candidate. A successful compile and export check proves binary integration; it does not replace in-game validation. Preserve v0.1.6 UPC and the established UCC baseline for rollback until the merged candidate is runtime-tested.
+
 ## License
 
-Source available — All Rights Reserved. This project is not open source. See `LICENSE`.
+Source available — All Rights Reserved. This project is not open source. See `LICENSE` for permitted uses.
