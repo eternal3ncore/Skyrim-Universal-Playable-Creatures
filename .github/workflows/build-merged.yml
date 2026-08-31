@@ -10,9 +10,6 @@ concurrency:
   group: merged-upc-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: windows-2025
@@ -23,20 +20,51 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect one-time merge tooling
+        id: merge_tools
+        shell: pwsh
+        run: |
+          if (Test-Path .\tools\merge-ucc.ps1) {
+            "needed=true" >> $env:GITHUB_OUTPUT
+          } else {
+            "needed=false" >> $env:GITHUB_OUTPUT
+          }
+
       - name: Checkout UCC core
+        if: steps.merge_tools.outputs.needed == 'true'
         uses: actions/checkout@v4
         with:
           repository: eternal3ncore/Skyrim-Universal-Creature-Controls
           ref: main
           path: _ucc
 
-      - name: Generate merged source
+      - name: Generate and clean merged source
+        if: steps.merge_tools.outputs.needed == 'true'
         shell: pwsh
         run: |
           .\tools\merge-ucc.ps1
-          if (-not (Test-Path .\src\ucc_core.cpp)) { throw 'ucc_core.cpp was not generated' }
+          .\tools\cleanup-merged.ps1
+
+      - name: Validate merged source
+        shell: pwsh
+        run: |
+          if (-not (Test-Path .\src\ucc_core.cpp)) { throw 'Vendored UCC core is missing' }
           $exports = Select-String -Path .\src\plugin.cpp,.\src\ucc_core.cpp -Pattern 'SKSEPluginLoad\(' -AllMatches
           if ($exports.Matches.Count -ne 1) { throw "Expected exactly one SKSEPluginLoad source entry, found $($exports.Matches.Count)" }
+
+          $deadPatterns = @(
+            'namespace WeaponHide',
+            'enableHideSheathedWeapons',
+            'ReadJsonStringArray',
+            'ApplyPlayableRaceConfig',
+            'IsConvertedTES4Race',
+            'BSTEventSink<SKSE::ActionEvent>'
+          )
+          foreach ($pattern in $deadPatterns) {
+            if (Select-String -Path .\src\plugin.cpp -SimpleMatch -Pattern $pattern -Quiet) {
+              throw "Redundant UPC implementation remains in src/plugin.cpp: $pattern"
+            }
+          }
 
       - name: Build Release
         shell: pwsh
@@ -57,14 +85,16 @@ jobs:
             }
           }
 
-      - name: Commit generated merged source
+      - name: Finalize self-contained merged source
+        if: steps.merge_tools.outputs.needed == 'true'
         shell: pwsh
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/plugin.cpp src/ucc_core.cpp
+          git add src\plugin.cpp src\ucc_core.cpp
+          git rm tools\merge-ucc.ps1 tools\cleanup-merged.ps1
           if (-not (git diff --cached --quiet)) {
-            git commit -m 'Vendor merged UCC core and finalize UPC v0.2.0 [skip ci]'
+            git commit -m 'Finalize self-contained UPC v0.2.0 source [skip ci]'
             git push origin HEAD:merge-ucc-v0.2.0
           }
 
@@ -74,7 +104,7 @@ jobs:
           $root = 'artifact\UniversalPlayableCreatures_v0_2_0'
           New-Item -ItemType Directory -Force -Path "$root\src" | Out-Null
           New-Item -ItemType Directory -Force -Path "$root\runtime\Data\SKSE\Plugins\UniversalPlayableCreatures" | Out-Null
-          Copy-Item CMakeLists.txt,build.ps1,vcpkg.json,vcpkg-configuration.json,LICENSE,README.md,DEVELOPMENT_RECORD.txt -Destination $root
+          Copy-Item CMakeLists.txt,build.ps1,vcpkg.json,vcpkg-configuration.json,LICENSE,README.md,DEVELOPMENT_RECORD.txt,SKYRIM_HANDEDNESS_AUDIT.md -Destination $root
           Copy-Item src\PCH.h,src\plugin.cpp,src\RaceCatalog.h,src\RaceCatalog.cpp,src\ucc_core.cpp -Destination "$root\src"
           Copy-Item config\UniversalPlayableCreatures.json -Destination "$root\runtime\Data\SKSE\Plugins\UniversalPlayableCreatures.json"
           Get-ChildItem config -Filter *.json | Where-Object { $_.Name -ne 'UniversalPlayableCreatures.json' } | Copy-Item -Destination "$root\runtime\Data\SKSE\Plugins\UniversalPlayableCreatures" -ErrorAction SilentlyContinue
