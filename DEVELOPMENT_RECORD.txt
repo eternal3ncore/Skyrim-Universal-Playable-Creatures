@@ -1,0 +1,165 @@
+UNIVERSAL PLAYABLE CREATURES
+CHRONOLOGICAL DEVELOPMENT / RESEARCH RECORD
+Merged line created: 2026-08-31
+
+PURPOSE
+=======
+This record preserves the implementation lineage, confirmed behavior, merge decisions,
+and rollback rules for Universal Playable Creatures (UPC) after incorporation of the
+Universal Creature Controls (UCC) runtime core.
+
+BASELINES AT MERGE
+==================
+- UPC v0.1.6 is the pre-merge playability/support baseline.
+- UCC v2.45 is the canonical historically confirmed controls baseline; later work
+  carries forward only deliberately retained, tested/event-driven improvements.
+- The first merged candidate is UPC v0.2.0. It is NOT a new stable baseline until
+  it is compiled successfully and then tested in Skyrim by the user.
+
+PROJECT OWNERSHIP DECISION — 2026-08-31
+======================================
+The merged project lives under Universal Playable Creatures, not under Universal
+Creature Controls. The UPC title encompasses both enabling creature playability and
+providing the controls/runtime adaptations needed to use those races as the player.
+
+Runtime target:
+  Data\SKSE\Plugins\UniversalPlayableCreatures.dll
+  Data\SKSE\Plugins\UniversalPlayableCreatures.json
+  Data\SKSE\Plugins\UniversalPlayableCreatures\*.json race catalogs
+
+There must be only one SKSE entry point, one SKSE initialization, one default log,
+and one owner for each runtime feature. A separately installed UCC DLL must not be
+used alongside the merged UPC DLL.
+
+MERGE SAFETY RULES
+==================
+1. Preserve UCC combat/crafting/casting behavior rather than rewriting it during
+   the structural merge.
+2. Preserve UPC RaceMenu and camera behavior rather than combining unrelated logic.
+3. No polling loops, worker timers, delayed retries, input replay, or save-baked
+   state are introduced by the merge.
+4. No SKSE serialization is used.
+5. Duplicate weapon-hide ownership is forbidden. The evolved UCC weapon visual
+   path is authoritative; UPC's older standalone sheathed-weapon path is disabled.
+6. Converted physical attacks retain their real BGSAttackData lifetime and authored
+   HitFrame behavior; physical attackData is not cleared at HitFrame itself.
+7. Werewolf, Vampire Lord, and Werebear keep their vanilla/vanilla-derived behavior
+   systems. Existing crafting interception is the retained exception.
+8. A successful compile is necessary but not sufficient to call a merged build
+   stable. Runtime validation remains required.
+
+CONFIGURATION CONSOLIDATION — 2026-08-31
+========================================
+The base configuration is reduced to settings that have distinct runtime meaning:
+
+  EnableCreatureRaceMenuCrashFix
+  EnableThirdPersonCameraNode
+  CameraNodeHeightZ
+  EnableCreatureSpellHandRestriction
+  PlayableHumanoidSpellHand
+  EnableHideUnsupportedEquippedWeapons
+  EnableHideSheathedWeapons
+
+Removed obsolete/redundant configuration concepts:
+- EnableCreatureRacesForSpellHandRestriction
+- EnablePlayableHumanoidRacesForSpellHandRestriction
+- SkyrimCreatureSpellHand
+- ConvertedTES4CreatureSpellHand
+
+PlayableHumanoidSpellHand accepts Both / Left / Right. Both is both the default and
+the no-restriction state, eliminating the need for a separate humanoid enable bool.
+
+RACE CATALOG SCHEMA — 2026-08-31
+================================
+The old playableRaces string-only array cannot carry the per-creature handedness
+information now required. The merged canonical catalog uses object rows:
+
+  {
+    "race": "Plugin.esm|FORMID",
+    "playable": false,
+    "spellHand": "Left"
+  }
+
+The root array is named "races".
+
+playable and spellHand are independent. Release catalogs can therefore ship every
+known race with playable=false while still providing runtime hand policy. Missing or
+invalid creature hand metadata produces no restriction rather than an origin-based
+guess.
+
+Catalog scan remains namespaced, non-recursive, sorted/deterministic, and tolerant of
+individual invalid/unresolved rows. JSONC comments are accepted.
+
+Known exhaustive catalog counts at merge:
+- Skyrim/Dawnguard/Dragonborn: 122
+- Oblivion: 223
+- Morroblivion: 68
+- Total: 413
+
+SPELL HANDEDNESS RESEARCH — 2026-08-31
+======================================
+The current tes4skyrim converter source establishes that native converted-creature
+casting uses Left when the creature does not block, and Right when block owns the
+left action lane. Runtime evidence overrides static converter prediction.
+
+Confirmed/detected anchors:
+- Scamp: Left. Actor Action/IDLE routing resolves through the left casting lane.
+- Minotaur: Right, runtime-confirmed and consistent with block occupying left.
+- Xivilai: Left, runtime-confirmed exception even though current static converter
+  logic predicts Right.
+- Clannfear: no native cast; converter manifest says block=true, so current fallback
+  policy is Right. User does not recall runtime blocking; a future runtime test may
+  override this static result.
+
+Important correction: lack of native casting does NOT mean a creature should have no
+spell hand. The UCC fallback cast allows non-native casters to cast using an authored
+attack/H2H HitFrame. Non-native caster fallback therefore uses Left when block is not
+present and Right when block occupies the left lane.
+
+The corrected 223-entry Oblivion mapping has 84 Left and 139 Right entries, including
+fallback assignments. No nativeCast field belongs in shipping UPC JSON.
+
+MERGED MODULE OWNERSHIP — UPC v0.2.0
+====================================
+UPC host module owns:
+- SKSEPluginInfo / SKSEPluginLoad
+- SKSE::Init
+- UniversalPlayableCreatures.log
+- base config loading for UPC options
+- RaceMenu crash safeguards
+- race catalog loading / playable flag application
+- Camera3rd node utility
+- runtime spell equip-side restriction
+
+UCC internal core owns:
+- creature attack-data discovery and attack dispatch
+- normal/power attack routing
+- blocking bridge
+- spell/shout fallback execution and HitFrame synchronization
+- crafting/workbench interception
+- traversal/collision fallback
+- authoritative merged weapon visual handling
+
+The UCC core is compiled as an internal translation unit and registers its event
+listener through an internal initializer. It has no second SKSE export and does not
+replace the UPC logger.
+
+BUILD VALIDATION REQUIREMENTS
+=============================
+The merged CI/build must verify:
+- source generation succeeds deterministically
+- exactly one SKSEPluginLoad source entry remains
+- Release configuration compiles on Windows / VS 2026-compatible runner
+- UniversalPlayableCreatures.dll is produced
+- DLL contains exactly one SKSEPlugin_Load export when dumpbin is available
+- test package contains source, base config, runtime DLL, and namespaced catalogs
+
+ROLLBACK / RELEASE DISCIPLINE
+=============================
+Do not replace the established pre-merge baselines until UPC v0.2.0 is tested in
+Skyrim. If the merged candidate fails, isolate the merge-specific regression rather
+than rewriting established UCC or UPC systems broadly.
+
+Future development should continue under the UPC project/repository once the merged
+candidate is accepted. UCC remains valuable as historical source/research lineage but
+is no longer intended to ship as a second runtime DLL.
