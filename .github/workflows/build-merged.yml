@@ -6,6 +6,10 @@ on:
       - merge-ucc-v0.2.0
   workflow_dispatch:
 
+concurrency:
+  group: merged-upc-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -70,7 +74,7 @@ jobs:
           $root = 'artifact\UniversalPlayableCreatures_v0_2_0'
           New-Item -ItemType Directory -Force -Path "$root\src" | Out-Null
           New-Item -ItemType Directory -Force -Path "$root\runtime\Data\SKSE\Plugins\UniversalPlayableCreatures" | Out-Null
-          Copy-Item CMakeLists.txt,build.ps1,vcpkg.json,vcpkg-configuration.json,LICENSE,README.md -Destination $root
+          Copy-Item CMakeLists.txt,build.ps1,vcpkg.json,vcpkg-configuration.json,LICENSE,README.md,DEVELOPMENT_RECORD.txt -Destination $root
           Copy-Item src\PCH.h,src\plugin.cpp,src\RaceCatalog.h,src\RaceCatalog.cpp,src\ucc_core.cpp -Destination "$root\src"
           Copy-Item config\UniversalPlayableCreatures.json -Destination "$root\runtime\Data\SKSE\Plugins\UniversalPlayableCreatures.json"
           Get-ChildItem config -Filter *.json | Where-Object { $_.Name -ne 'UniversalPlayableCreatures.json' } | Copy-Item -Destination "$root\runtime\Data\SKSE\Plugins\UniversalPlayableCreatures" -ErrorAction SilentlyContinue
