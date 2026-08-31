@@ -1,0 +1,84 @@
+name: Build merged UPC UCC
+
+on:
+  push:
+    branches:
+      - merge-ucc-v0.2.0
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout UPC
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout UCC core
+        uses: actions/checkout@v4
+        with:
+          repository: eternal3ncore/Skyrim-Universal-Creature-Controls
+          ref: main
+          path: _ucc
+
+      - name: Generate merged source
+        shell: pwsh
+        run: |
+          .\tools\merge-ucc.ps1
+          if (-not (Test-Path .\src\ucc_core.cpp)) { throw 'ucc_core.cpp was not generated' }
+          $exports = Select-String -Path .\src\plugin.cpp,.\src\ucc_core.cpp -Pattern 'SKSEPluginLoad\(' -AllMatches
+          if ($exports.Matches.Count -ne 1) { throw "Expected exactly one SKSEPluginLoad source entry, found $($exports.Matches.Count)" }
+
+      - name: Build Release
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File .\build.ps1
+
+      - name: Verify DLL
+        shell: pwsh
+        run: |
+          $dll = Get-ChildItem -Path build -Recurse -Filter UniversalPlayableCreatures.dll | Select-Object -First 1
+          if (-not $dll) { throw 'UniversalPlayableCreatures.dll not found' }
+          Write-Host "Built: $($dll.FullName)"
+          $dumpbin = Get-ChildItem 'C:\Program Files\Microsoft Visual Studio' -Recurse -Filter dumpbin.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($dumpbin) {
+            $out = & $dumpbin.FullName /exports $dll.FullName | Out-String
+            if (($out | Select-String -Pattern 'SKSEPlugin_Load' -AllMatches).Matches.Count -ne 1) {
+              throw 'DLL does not contain exactly one SKSEPlugin_Load export'
+            }
+          }
+
+      - name: Commit generated merged source
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/plugin.cpp src/ucc_core.cpp
+          if (-not (git diff --cached --quiet)) {
+            git commit -m 'Vendor merged UCC core and finalize UPC v0.2.0 [skip ci]'
+            git push origin HEAD:merge-ucc-v0.2.0
+          }
+
+      - name: Stage test package
+        shell: pwsh
+        run: |
+          $root = 'artifact\UniversalPlayableCreatures_v0_2_0'
+          New-Item -ItemType Directory -Force -Path "$root\src" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root\runtime\Data\SKSE\Plugins\UniversalPlayableCreatures" | Out-Null
+          Copy-Item CMakeLists.txt,build.ps1,vcpkg.json,vcpkg-configuration.json,LICENSE,README.md -Destination $root
+          Copy-Item src\PCH.h,src\plugin.cpp,src\RaceCatalog.h,src\RaceCatalog.cpp,src\ucc_core.cpp -Destination "$root\src"
+          Copy-Item config\UniversalPlayableCreatures.json -Destination "$root\runtime\Data\SKSE\Plugins\UniversalPlayableCreatures.json"
+          Get-ChildItem config -Filter *.json | Where-Object { $_.Name -ne 'UniversalPlayableCreatures.json' } | Copy-Item -Destination "$root\runtime\Data\SKSE\Plugins\UniversalPlayableCreatures" -ErrorAction SilentlyContinue
+          $dll = Get-ChildItem -Path build -Recurse -Filter UniversalPlayableCreatures.dll | Select-Object -First 1
+          Copy-Item $dll.FullName -Destination "$root\runtime\Data\SKSE\Plugins\UniversalPlayableCreatures.dll"
+
+      - name: Upload test package
+        uses: actions/upload-artifact@v4
+        with:
+          name: UniversalPlayableCreatures_v0_2_0
+          path: artifact\UniversalPlayableCreatures_v0_2_0
