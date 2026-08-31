@@ -158,7 +158,7 @@ namespace UCCCore
 '@
     $upc = Replace-Exact $upc $oldPolicy $newPolicy 'Spell hand policy routing'
 
-    $upc = Replace-Exact $upc '            RaceMenuFix::ApplyPlayableRaceConfig();' '            UPC::RaceCatalog::Load();' 'DataLoaded race catalog call'
+    $upc = Replace-Exact $upc '            RaceMenuFix::ApplyPlayableRaceConfig();' '            UPC::RaceCatalog::Load(g_config.enableRaceMenuCrashFix);' 'DataLoaded race catalog call'
 
     $oldLoader = @'
     auto* messaging = SKSE::GetMessagingInterface();
