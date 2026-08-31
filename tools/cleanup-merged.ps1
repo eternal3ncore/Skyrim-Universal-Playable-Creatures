@@ -16,21 +16,20 @@ function Remove-Regex {
 }
 
 # Old standalone race-catalog support is superseded by RaceCatalog v2.
-$text = $text.Replace('    constexpr auto kRaceConfigDir = "Data/SKSE/Plugins/UniversalPlayableCreatures"sv;' + "`r`n", '')
-$text = $text.Replace('    constexpr auto kRaceConfigDir = "Data/SKSE/Plugins/UniversalPlayableCreatures"sv;' + "`n", '')
-$text = Remove-Regex $text '(?s)\n    std::vector<std::string> ReadJsonStringArray\(.*?(?=\n    std::optional<HandPolicy> ParseHandPolicy)' 'legacy JSON string-array parser'
-$text = Remove-Regex $text '(?s)\n    bool IsConvertedTES4Race\(.*?(?=\n    void SetupLog\(\))' 'legacy TES4 origin classifier'
-$text = Remove-Regex $text '(?s)\n        std::size_t ApplyPlayableRaceFile\(.*?(?=\n    \}\n\n    namespace CameraNode)' 'legacy playableRaces loader'
+$text = [regex]::Replace($text, '(?m)^    constexpr auto kRaceConfigDir = "Data/SKSE/Plugins/UniversalPlayableCreatures"sv;\r?\n', '', 1)
+$text = Remove-Regex $text '(?s)\r?\n    std::vector<std::string> ReadJsonStringArray\(.*?(?=\r?\n    std::optional<HandPolicy> ParseHandPolicy)' 'legacy JSON string-array parser'
+$text = Remove-Regex $text '(?s)\r?\n    bool IsConvertedTES4Race\(.*?(?=\r?\n    void SetupLog\(\))' 'legacy TES4 origin classifier'
+$text = Remove-Regex $text '(?s)\r?\n        std::size_t ApplyPlayableRaceFile\(.*?(?=\r?\n    \}\r?\n\r?\n    namespace CameraNode)' 'legacy playableRaces loader'
 
 # UCC is the sole owner of weapon visibility in the merged DLL. Remove UPC's
 # older clone-culling state and its separate ActionEvent lifecycle completely.
-$text = Remove-Regex $text '(?s)\n        // The merged UCC core exclusively owns weapon visibility\..*?\n        bool enableHideSheathedWeapons\{ false \};\n' 'dormant UPC weapon-hide config member'
-$text = Remove-Regex $text '(?s)\n    namespace WeaponHide\n    \{.*?(?=\n    class EventRouter final)' 'legacy UPC WeaponHide namespace'
+$text = Remove-Regex $text '(?s)\r?\n        // The merged UCC core exclusively owns weapon visibility\..*?\r?\n        bool enableHideSheathedWeapons\{ false \};\r?\n' 'dormant UPC weapon-hide config member'
+$text = Remove-Regex $text '(?s)\r?\n    namespace WeaponHide\r?\n    \{.*?(?=\r?\n    class EventRouter final)' 'legacy UPC WeaponHide namespace'
 $text = [regex]::Replace($text, 'public RE::BSTEventSink<RE::InputEvent\*>,\r?\n\s*public RE::BSTEventSink<SKSE::ActionEvent>', 'public RE::BSTEventSink<RE::InputEvent*>', 1)
-$text = Remove-Regex $text '(?s)\n        RE::BSEventNotifyControl ProcessEvent\(const SKSE::ActionEvent\* event, RE::BSTEventSource<SKSE::ActionEvent>\*\) override\n        \{.*?\n        \}\n(?=    \};)' 'legacy UPC ActionEvent handler'
-$text = [regex]::Replace($text, '(?m)^\s*WeaponHide::SyncFromEngineState\([^\n]*\);\r?\n', '')
+$text = Remove-Regex $text '(?s)\r?\n        RE::BSEventNotifyControl ProcessEvent\(const SKSE::ActionEvent\* event, RE::BSTEventSource<SKSE::ActionEvent>\*\) override\r?\n        \{.*?\r?\n        \}\r?\n(?=    \};)' 'legacy UPC ActionEvent handler'
+$text = [regex]::Replace($text, '(?m)^\s*WeaponHide::SyncFromEngineState\([^\r\n]*\);\r?\n', '')
 $text = [regex]::Replace($text, '(?m)^\s*WeaponHide::g_hidden\s*=\s*false;\r?\n', '')
-$text = Remove-Regex $text '(?s)\n        if \(g_config\.enableHideSheathedWeapons\) \{\n            if \(auto\* source = SKSE::GetActionEventSource\(\)\) \{.*?\n        \}\n(?=    \})' 'legacy UPC ActionEvent sink registration'
+$text = Remove-Regex $text '(?s)\r?\n        if \(g_config\.enableHideSheathedWeapons\) \{\r?\n            if \(auto\* source = SKSE::GetActionEventSource\(\)\) \{.*?\r?\n        \}\r?\n(?=    \})' 'legacy UPC ActionEvent sink registration'
 
 $forbidden = @(
     'namespace WeaponHide',
