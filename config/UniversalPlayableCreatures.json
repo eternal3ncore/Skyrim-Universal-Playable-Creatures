@@ -1,13 +1,11 @@
 {
   "EnableCreatureRaceMenuCrashFix": true,
   "EnableThirdPersonCameraNode": true,
-  "EnableCreatureSpellHandRestriction": true,
-  "EnableHideSheathedWeapons": true,
-
   "CameraNodeHeightZ": 121.0,
 
-  "EnablePlayableHumanoidRacesForSpellHandRestriction": false,
-  "EnableCreatureRacesForSpellHandRestriction": true,
-  "SkyrimCreatureSpellHand": "Left",
-  "ConvertedTES4CreatureSpellHand": "Right"
+  "EnableCreatureSpellHandRestriction": true,
+  "PlayableHumanoidSpellHand": "Both",
+
+  "EnableHideUnsupportedEquippedWeapons": true,
+  "EnableHideSheathedWeapons": true
 }
