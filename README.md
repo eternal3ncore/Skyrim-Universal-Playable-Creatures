@@ -39,7 +39,7 @@ and change its `playable` value from `false` to `true`:
 }
 ```
 
-Save the file and restart Skyrim. No DLL rebuild is required.
+Save the file and restart Skyrim.
 
 The included catalogs are:
 
