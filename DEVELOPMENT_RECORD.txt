@@ -1,0 +1,382 @@
+UNIVERSAL PLAYABLE CREATURES
+CHRONOLOGICAL DEVELOPMENT / RESEARCH RECORD
+Merged line created: 2026-08-31
+
+PURPOSE
+=======
+This record preserves the implementation lineage, confirmed behavior, merge decisions,
+and rollback rules for Universal Playable Creatures (UPC) after incorporation of the
+Universal Creature Controls (UCC) runtime core.
+
+BASELINES AT MERGE
+==================
+- UPC v0.1.6 is the pre-merge playability/support baseline.
+- UCC v2.45 is the canonical historically confirmed controls baseline; later work
+  carries forward only deliberately retained, tested/event-driven improvements.
+- The first merged candidate is UPC v0.2.0. It is NOT a new stable baseline until
+  it is tested in Skyrim by the user.
+
+PROJECT OWNERSHIP DECISION — 2026-08-31
+======================================
+The merged project lives under Universal Playable Creatures. UPC owns the public
+SKSE identity and includes the controls/runtime adaptations needed to use supported
+creature races as the player.
+
+Runtime target:
+  Data\SKSE\Plugins\UniversalPlayableCreatures.dll
+  Data\SKSE\Plugins\UniversalPlayableCreatures.json
+  Data\SKSE\Plugins\UniversalPlayableCreatures\*.json race catalogs
+
+There is one SKSE entry point, one SKSE initialization, one default log, and one
+owner for each runtime feature. A separately installed UCC DLL must not be used
+alongside the merged UPC DLL.
+
+MERGE SAFETY / CLEANUP RULES
+============================
+1. Preserve established UCC combat/crafting/casting behavior during the structural merge.
+2. Preserve UPC RaceMenu and camera behavior without combining unrelated logic.
+3. No polling loops, worker timers, delayed retries, input replay, or save-baked state.
+4. No SKSE serialization.
+5. Duplicate implementations are removed rather than left dormant. The evolved UCC
+   weapon-visual path is authoritative; UPC's older WeaponHide namespace, ActionEvent
+   sink, clone-culling state, and related load/race synchronization were physically removed.
+6. The obsolete UPC playableRaces parser and its JSONC string-array helper were removed;
+   RaceCatalog v2 is the sole race-catalog implementation.
+7. Converted physical attacks retain real BGSAttackData lifetime and authored HitFrame
+   behavior; physical attackData is not cleared at HitFrame itself.
+8. Werewolf, Vampire Lord, and Werebear keep their vanilla/vanilla-derived behavior
+   systems; existing crafting interception is the retained historical exception.
+9. A successful compile is necessary but not sufficient for stable status; runtime
+   validation remains required.
+
+CONFIGURATION CONSOLIDATION — 2026-08-31
+========================================
+Base settings with distinct runtime meaning:
+
+  EnableCreatureRaceMenuCrashFix
+  EnableThirdPersonCameraNode
+  CameraNodeHeightZ
+  EnableCreatureSpellHandRestriction
+  PlayableHumanoidSpellHand
+  EnableHideUnsupportedEquippedWeapons
+  EnableHideSheathedWeapons
+
+Removed obsolete/redundant concepts:
+- EnableCreatureRacesForSpellHandRestriction
+- EnablePlayableHumanoidRacesForSpellHandRestriction
+- SkyrimCreatureSpellHand
+- ConvertedTES4CreatureSpellHand
+
+PlayableHumanoidSpellHand accepts Both / Left / Right. Both is the default/no-op.
+Weapon visibility keys are consumed only by the UCC internal core.
+
+RACE CATALOG SCHEMA — 2026-08-31
+================================
+Canonical object row:
+
+  {
+    "race": "Plugin.esm|FORMID",
+    "playable": false,
+    "spellHand": "Left"
+  }
+
+The root array is "races". playable and spellHand are independent. Catalog loading
+is namespaced, non-recursive, sorted/deterministic, and isolates invalid/unresolved rows.
+
+Known packaged catalog counts:
+- Skyrim/Dawnguard/Dragonborn: 122
+- Oblivion: 223
+- Morroblivion: 68
+- Total: 413
+
+SPELL HANDEDNESS RESEARCH — OBLIVION
+====================================
+Converted Oblivion policy from converter/action evidence:
+- native cast + no block: Left
+- native cast + block: Right
+- fallback/non-native + no block: Left
+- fallback/non-native + block: Right
+- runtime-confirmed evidence overrides static routing.
+
+Anchors:
+- Scamp: Left.
+- Minotaur: Right, runtime-confirmed.
+- Xivilai: Left, runtime-confirmed exception to static Right prediction.
+- Clannfear: current fallback Right because converter metadata reports block=true;
+  future runtime evidence may override it.
+
+Corrected Oblivion mapping: 84 Left / 139 Right across 223 rows, no None values.
+
+SPELL HANDEDNESS RESEARCH — SKYRIM
+==================================
+The user supplied a 660-file Skyrim/DLC behavior corpus on 2026-08-31. A first-pass
+BeginCast marker audit found multiple creature behavior files with BeginCastLeft and
+no BeginCastRight, and no right-only BeginCast behavior in the scanned set. Other
+families expose both generic lanes; both-lane bridge symbols are not sufficient to
+classify a race as Both.
+
+Decision: all 122 packaged Skyrim/Dawnguard/Dragonborn creature rows default to
+spellHand=Left. Precedence is runtime-confirmed override, then strong behavior/action
+routing, then the Left default. See SKYRIM_HANDEDNESS_AUDIT.md.
+
+MERGED MODULE OWNERSHIP — UPC v0.2.0
+====================================
+UPC host owns:
+- SKSEPluginInfo / SKSEPluginLoad / SKSE::Init
+- UniversalPlayableCreatures.log
+- UPC base-config parsing
+- RaceMenu safeguards
+- RaceCatalog v2 loading/playable flag application
+- Camera3rd node utility
+- runtime spell equip-side restriction
+
+UCC internal core owns:
+- attack-data discovery and attack dispatch
+- normal/power attack routing and blocking bridge
+- spell/shout fallback execution and HitFrame synchronization
+- crafting/workbench interception
+- traversal/collision fallback
+- authoritative weapon visual handling
+
+The UCC core is now vendored as src/ucc_core.cpp. It has no second SKSE export and
+uses the UPC logger/config namespace. The final build no longer checks out the UCC
+repository or generates merged source during CI after the one-time cleanup commit.
+
+BUILD VALIDATION — 2026-08-31
+=============================
+An earlier merged build passed Windows CI before final dead-code cleanup. The final
+self-contained workflow validates:
+- vendored src/ucc_core.cpp exists
+- exactly one SKSEPluginLoad source entry exists
+- known obsolete UPC WeaponHide/parser symbols are absent from src/plugin.cpp
+- Release configuration compiles on Windows
+- UniversalPlayableCreatures.dll is produced
+- exactly one SKSEPlugin_Load DLL export exists when dumpbin is available
+- the v0.2.0 test artifact contains source, config, catalogs, DLL, and research record.
+
+ROLLBACK / RELEASE DISCIPLINE
+=============================
+Do not promote UPC v0.2.0 to stable until it is tested in Skyrim. If the candidate
+fails, isolate the merge-specific regression rather than rewriting established UCC
+or UPC systems broadly.
+
+
+MERGE POLISH / INPUT REGRESSION FIX — UPC v0.2.1 CANDIDATE — 2026-08-31
+=======================================================================
+Runtime testing of merged v0.2.0 established that UPC host features loaded correctly
+(catalogs, RaceMenu protection, camera, spell-hand orientation) while all UCC input
+commands were silent. Force-sheathe produced no diagnostic, and attacks/control
+commands likewise failed to enter the UCC path.
+
+Root cause:
+- The merged DLL registered UPC::MessageHandler first, then UCCCore attempted a second
+  SKSE RegisterListener callback for the same plugin handle and the same SKSE sender.
+- SKSE treats a plugin already registered for that sender as registered and returns
+  success without adding a second callback. UCC therefore believed initialization had
+  succeeded, but its lifecycle handler never received kInputLoaded/kDataLoaded/etc.
+- Because UCC's kInputLoaded handler never ran, its BSInputDeviceManager InputSink was
+  never installed. This disabled every input-driven UCC feature at once.
+
+v0.2.1 merge architecture:
+1. Exactly one SKSE messaging listener remains: the UPC host MessageHandler.
+2. UCCCore no longer calls SKSE::MessagingInterface::RegisterListener.
+3. UPC forwards lifecycle messages into UCCCore::HandleSKSEMessage after host-owned
+   state is prepared. On kDataLoaded this means config and RaceCatalog are ready before
+   UCC performs creature classification/capability discovery.
+4. Exactly one BSInputDeviceManager sink remains. UPC EventRouter receives the input
+   chain and forwards it to UCCCore::ProcessInputEvents, then performs the independent
+   camera POV check on the same chain.
+5. Exactly one MenuOpenClose sink remains. UPC EventRouter forwards CraftingMenu events
+   to UCCCore instead of registering a second UCC UI sink.
+6. RaceSwitchComplete now explicitly refreshes UCC state in the shared EventRouter.
+   The existing input-time race-ID fast path remains only as a cheap safety net for
+   unusual race changes and does no per-frame work.
+7. UCC's private second config-file parse was removed. UPC parses the shared config
+   once with nlohmann::json and passes weapon-visibility settings to UCCCore.
+8. UCC's redundant private logger setup and standalone include/config scaffolding were
+   removed. The internal core now uses the host PCH/logger/config ownership.
+9. RaceCatalog now retains an enabled-race set. `playable=true` is the authoritative
+   UPC/UCC availability switch for ordinary catalog creatures; `playable=false` rows
+   may still carry independent metadata such as spellHand. Werewolf/Vampire Lord/
+   Werebear retain the historical crafting-only exception.
+10. Duplicate catalog rows are deterministic: a later resolved row replaces prior
+    availability and hand metadata, with a warning.
+11. Human-readable catalog metadata (`name`, `editorID`) is intentionally ignored by
+    the parser and is safe to ship for maintenance/readability.
+12. The build script now stages the newly compiled DLL into
+    runtime\Data\SKSE\Plugins\UniversalPlayableCreatures.dll and the package omits the
+    stale v0.2.0 DLL before compilation.
+
+Runtime validation required before commit/stable promotion:
+- Log must show `Shared UPC/UCC input event routing registered` at InputLoaded.
+- Log must show `UCC lifecycle: InputLoaded (shared input route ready)`.
+- On Scamp load with playable=true, UCC must log UniversalCreature policy with
+  catalogEnabled=true and discover the race attack capability profile.
+- Normal attack, Sneak power attack, Jump hold/release, block, shout/spell fallback,
+  and Ready Weapon+Sprint force-sheathe must again enter their established UCC paths.
+- Force-sheathe must emit its `Forced sheathe chord:` diagnostic.
+- A catalog race changed to playable=false must not receive UniversalCreature controls.
+- Scamp Left-hand spell orientation must remain functional and unchanged.
+
+This v0.2.1 package is an experimental test candidate only. No repository commit should
+be made until the user confirms the merged control path and catalog gating in-game.
+
+
+NATIVE-FIRST SPELL OWNERSHIP — UPC v0.2.3 CANDIDATE — 2026-08-31
+=================================================================
+Runtime validation of v0.2.1 confirmed the merged lifecycle/input repair and showed
+converted Scamp left-hand spell input reaching the correct visible spell animation.
+However, UCC simultaneously executed its manual immediate cast on button release,
+which launched the spell before the authored animation reached its native release point.
+
+Root cause:
+- Fire-and-forget input always entered the UCC fallback backend on release.
+- The fallback decision did not first test whether Skyrim's native hand MagicCaster had
+  already accepted/owned the exact spell from the preceding DOWN input.
+- Animation-graph event return values are not a reliable substitute for caster ownership;
+  the Scamp visibly entered its correct spell animation even while the old fallback path
+  reported an animationless immediate cast.
+
+v0.2.3 correction:
+1. DOWN records only the spell, hand, and press time and clears stale UCC fallback state.
+   It does not take MagicCaster ownership or start a competing spell visual.
+2. On UP, UCC checks the matching hand MagicCaster. If `currentSpell` is the exact
+   equipped spell, native ownership is confirmed and UCC performs no cast, no fallback
+   animation, and no launch-time substitution. Skyrim/behavior owns release timing.
+3. Only when native ownership is absent does UCC enforce the native charge duration,
+   run CheckCast, and enter compatibility fallback.
+4. If the fallback animation is accepted, the spell payload is queued for the exact
+   animation HitFrame through the existing CreatureAnimationEventSink.
+5. Only the absolute bottom fallback (no native owner and no accepted fallback animation)
+   uses CastSpellImmediate, explicitly logged as animationless bottom fallback.
+6. Self-delivery concentration behavior is intentionally unchanged in this candidate;
+   this change is narrowly scoped to fire-and-forget/fixed-duration casting.
+
+Validation targets:
+- Scamp log should show `spell native ownership CONFIRMED` and should NOT show
+  `immediate spell cast` or `spell FALLBACK` for a working native cast.
+- Scamp projectile/effect should launch at the authored animation's native timing.
+- A creature lacking native spell ownership should log `spell FALLBACK`; if its fallback
+  animation is accepted, the spell should fire only at exact HitFrame.
+- Existing attack, block, Sneak power attack, Jump, force-sheathe, catalog gating, and
+  spell-hand restriction behavior should remain unchanged.
+
+This remains an experimental test candidate. Do not promote or commit as stable until
+runtime validation confirms native and fallback spell paths separately.
+
+
+2026-08-31 - v0.2.3 hand-equip drawn-state preservation candidate
+- Added TESEquipEvent to the existing shared UPC event router; no new independent SKSE lifecycle/input listener.
+- For active UniversalCreature players, successful EQUIP events are filtered to hand equipment only: weapons, spells, torches/lights, and shield-slot armor. Ordinary armor/clothing/jewelry is ignored.
+- If the player is already drawn when hand equipment becomes equipped (Inventory, Magic, Favorites, hotkey, or other source), UPC invokes the existing force-sheathe path once and records that the pre-change state was drawn.
+- Redraw is event-driven: preferred completion is SKSE ActionEvent kEndSheathe; NiNodeUpdateEvent is a secondary graph/3D completion point. No timers, frame polling, save serialization, or menu qualifiers.
+- Internal force-sheathe recovery equip operations are guarded against recursively starting another hand-equip transaction.
+- Auto-redraw will not force through an active left/right native MagicCaster; native-first spellcasting remains authoritative.
+- Leaving UniversalCreature policy clears any pending hand-equip transaction.
+- Diagnostic lines: `Hand-equip while drawn...` and `Hand-equip drawn state RESTORE...`.
+- Test candidate only; no stable checkpoint/commit until in-game validation.
+
+2026-08-31 - v0.2.4 native hand-equip interception candidate
+- v0.2.3 runtime test proved TESEquipEvent is not emitted reliably for the player hand changes UPC must observe. The shared event sink registered, but no hand-equip callback occurred during tested spell/equipment changes.
+- Removed TESEquipEvent routing and the dead ProcessEquipEvent path rather than retaining duplicate mechanisms.
+- Added MinHook-based interception of the two authoritative Skyrim equipment entry points exposed by CommonLibSSE-NG/Address Library:
+  * ActorEquipManager::EquipObject (weapons, shields, torches/hand objects)
+  * ActorEquipManager::EquipSpell (spells)
+- Interception is player-only, UPC UniversalCreature-only, drawn-state-only, and filters to hand-capable forms. Ordinary armor/clothing/jewelry is ignored; armor only qualifies when it occupies the shield slot.
+- The pre-equip drawn state is captured at the native equipment boundary. UPC invokes the established force-sheathe path before the requested native equip proceeds. Re-entrant equipment calls made by force-sheathe recovery are guarded and pass directly through to Skyrim.
+- After Skyrim's original EquipObject/EquipSpell call returns, UPC restores the prior drawn state once. EndSheathe remains a valid earlier completion point if Skyrim emits it; otherwise the post-native-equip return is the deterministic one-shot completion point. No polling, timer, menu qualifier, hotkey qualifier, or save state is used.
+- Native spellcasting v0.2.2 behavior is otherwise unchanged. Automatic redraw refuses to force through an active native MagicCaster.
+- MinHook is now a vcpkg dependency. Hooks are enabled individually; UPC does not globally enable/disable hooks belonging to other plugins.
+
+
+2026-08-31 - v0.2.5 static MinHook runtime-dependency correction
+- v0.2.4 built with the x64-windows vcpkg triplet, which linked MinHook dynamically and caused SKSE/Windows loader error 0000007E when MinHook.dll was not distributed.
+- Kept the v0.2.4 native ActorEquipManager hand-equip interception design unchanged.
+- Changed the build target to x64-windows-static-md so vcpkg libraries, including MinHook, are linked into UniversalPlayableCreatures.dll while retaining the normal dynamically linked MSVC runtime.
+- Goal: restore UPC to a single-plugin-DLL deployment with no MinHook.dll beside it.
+- No timers, polling, menu-specific equipment logic, or changes to the validated native-first spellcasting path were introduced.
+
+
+2026-08-31 - v0.2.6 authoritative hand-state observation
+- Removed MinHook completely: dependency, include, CMake linkage, static triplet requirement, and ActorEquipManager detours. v0.2.5 proved those wrapper relocation targets were not traversed by the tested player equipment paths.
+- Hand changes are now detected from PlayerCharacter::GetEquippedObject(left/right), which reads the actor process's authoritative equipped-hand state.
+- A baseline of left/right form IDs plus the prior IsWeaponDrawn state is maintained only while UPC creature controls are active.
+- Menu closes queue a one-shot SKSE task to observe the settled hand state, covering Inventory, Magic and Favorites without menu-specific equip code.
+- Hotkey/Favorites input queues the same one-shot observation after input processing. EndDraw/EndSheathe also provide event-driven observation points.
+- If the authoritative hand forms changed and the previous observed state was drawn, UPC invokes the existing force-sheathe path, then queues one redraw task so draw restoration occurs after the sheathe request rather than synchronously in the same callback.
+- No recurring poll, timer, save serialization, or equipment-function hook is used.
+
+2026-08-31 - v0.2.7 pre-menu hand snapshot / deferred post-menu transaction
+- v0.2.6 did not reliably preserve drawn state because it depended on a rolling observed-hand baseline at menu-close time. That baseline could already reflect menu-time state and did not preserve the authoritative pre-menu drawn condition.
+- Replaced the rolling hand observer with explicit one-shot snapshots. Inventory, Magic, and Favorites menu OPEN capture left hand, right hand, and IsWeaponDrawn() before the paused equipment transaction begins.
+- Menu CLOSE performs no actor/equipment manipulation inside the UI callback. It queues exactly one SKSE game task; that task compares PlayerCharacter::GetEquippedObject(left/right) against the pre-menu snapshot after the menu callback has fully unwound.
+- If neither hand changed, nothing occurs. Armor/clothing/jewelry changes therefore remain irrelevant automatically because only the actual equipped hand forms are compared.
+- If a hand changed and the player was drawn before the menu opened, UPC invokes the established ForceCreatureSheathe path only from the deferred gameplay task, then arms the existing one-shot redraw restoration. No menu-time sheathe/unequip is attempted.
+- Numbered/direct hotkeys use the same transaction principle: snapshot on the Hotkey input DOWN edge while no equipment menu is open, then compare once on a queued game task after input processing. Favorites-menu opening itself is not treated as a hotkey transaction; Favorites selection is handled by its menu snapshot.
+- Removed the v0.2.6 rolling observed-hand state, menu-close observer, and end-draw/end-sheathe observation duplication. EndSheathe remains a completion signal for an already pending redraw.
+- MinHook remains removed. No polling, timer, serialization, native equipment detour, or recurring task was added.
+- Diagnostic success line: `Deferred hand equipment change [post-menu]...` or `[post-hotkey]...`, followed by the existing forced-sheathe and drawn-state restore diagnostics when the pre-operation state was drawn.
+
+
+2026-08-31 - v0.2.8 ActionEvent-derived creature ready state
+- Kept v0.2.7's runtime-confirmed deferred hand-change comparison.
+- Replaced IsWeaponDrawn() as the normal pre-menu/pre-hotkey ready-state authority with a runtime-only latch driven by the existing SKSE ActionEvent sink.
+- kBeginDraw/kEndDraw set ready=true; kBeginSheathe/kEndSheathe set ready=false.
+- IsWeaponDrawn() is used only as a cold-start fallback until the first draw/sheathe ActionEvent is observed in the current creature session.
+- Added INFO diagnostics for all four ready-state ActionEvents so converted-graph emission can be verified directly.
+- Removed the speculative queued redraw fallback after an equipment change. A pending redraw now completes only from kEndSheathe, keeping the transaction event-driven and avoiding timers/polls.
+- MinHook remains absent.
+
+
+2026-08-31 - v0.2.9 deferred redraw after EndSheathe
+- Runtime v0.2.8 confirmed ActionEvent-derived ready state and post-menu hand-change detection correctly identify hand assignments made while the converted creature was initially drawn.
+- v0.2.8 also confirmed the automatic sheathe half succeeds. The apparent later EndDraw was user manual input; the native redraw request issued directly inside EndSheathe did not visibly restore the drawn state.
+- Preserved the v0.2.8 gate: this workaround runs only when the pre-menu/pre-hotkey snapshot says the creature was initially drawn/ready. Equipment changes made while initially sheathed do not request a sheathe/redraw cycle.
+- Changed EndSheathe handling to queue exactly one SKSE game task. The task calls DrawWeaponMagicHands(true) only after the EndSheathe callback has returned, avoiding a redraw request while the behavior transition callback is still unwinding.
+- Removed NiNodeUpdateEvent as an alternate hand-equip redraw completion path so it cannot race the EndSheathe-owned deferred redraw. NiNodeUpdateEvent remains only for weapon-visual resynchronization.
+- No polling, timer, serialization, MinHook, actor refresh, or repeated retry was added.
+
+2026-08-31 - v0.2.11 unified NiNode hand-change detector
+- Runtime v0.2.9 confirmed the complete menu transaction: actual hand change -> forced sheathe -> EndSheathe -> one deferred redraw task -> EndDraw. The same build did not detect an outside-menu assignment because its separate hotkey snapshot path was source-specific and did not receive that equip.
+- Removed the menu snapshot/post-menu task path and the hotkey snapshot/post-hotkey task path entirely. Hand changes now have one detector regardless of source.
+- Reused UPC's already-registered SKSE NiNodeUpdateEvent sink. On a player node update, UPC compares PlayerCharacter::GetEquippedObject(left/right) against a two-FormID runtime cache. A real hand change is therefore detected from the resulting actor state rather than inferred from menu/input origin.
+- Inventory, Magic, and Favorites menus now do only one thing for this subsystem: set a suppression flag while open. NiNode hand comparison is skipped while paused and the pre-menu cache is preserved; the first player NiNodeUpdate after close can observe the final hand state through the same detector used for gameplay equips.
+- When a hand changes while the ActionEvent-derived creature ready state is true, UPC reuses the proven v0.2.9 sheathe -> EndSheathe -> one deferred redraw transaction. When initially sheathed, the cache updates and no draw-state workaround runs.
+- The cache is committed before requesting sheathe so node rebuilds caused by the transaction cannot recursively look like another equip.
+- Removed now-redundant HandEquipSnapshot, menu/hotkey deferred-check queues, hotkey input inference, and unused hand-form classifier. MinHook remains absent.
+- No polling, timer, serialization, actor refresh, equipment detour, or recurring task was added.
+- Diagnostic line for a real detected change: `Hand equipment change [NiNode]: ... ready=true/false`.
+
+2026-08-31 - v0.2.11 compile correction
+- Restored the local std::string_view user derived from ButtonEvent::userEvent that was accidentally removed while deleting the superseded hotkey hand-snapshot path in v0.2.10.
+- No behavioral change to the v0.2.10 unified NiNode hand-change architecture.
+- MinHook remains absent; no menu-specific or hotkey-specific hand-equipment detector restored.
+
+
+2026-08-31 - v0.2.12 TESEquipEvent correction / single equipment notification source
+- Re-examination of the actual v0.2.3 source invalidated the earlier conclusion that TESEquipEvent was unreliable. The v0.2.3 handler returned on `!player->IsWeaponDrawn()` before emitting its `Hand-equip while drawn` diagnostic; later runtime testing established that `IsWeaponDrawn()` can be false for visibly drawn/ready converted creatures. Therefore absence of that diagnostic did not prove absence of TESEquipEvent.
+- Restored TESEquipEvent to the existing shared UPC EventRouter through ScriptEventSourceHolder. No second SKSE lifecycle/input listener was added.
+- The raw event is logged before actor/policy/menu filtering: `TESEquipEvent: actor=... form=... equipped=...`. This first diagnostic candidate is intended to answer definitively whether tested spell/weapon assignments emit the event.
+- Both equip and unequip events are accepted. UPC does not classify `baseObject` and does not filter on `event->equipped`; the event is notification only.
+- Outside equipment menus, a player UniversalCreature TESEquipEvent queues exactly one SKSE task. The task compares authoritative `PlayerCharacter::GetEquippedObject(left/right)` FormIDs against the runtime hand cache after the equipment operation settles. Multiple events coalesce while a check is queued.
+- Inventory, Magic, and Favorites remain safety gates only. A TESEquipEvent received while one is open sets `equipmentCheckPending=true` and does not manipulate the actor. Menu close queues the same one-shot settled-hand comparison used outside menus. There is still only one equipment notification source.
+- Armor/clothing/jewelry and other irrelevant equip events naturally become no-ops when neither actual hand changed; the diagnostic `TESEquipEvent settled [...]: hands unchanged` is retained in this test build.
+- A real change logs `Hand equipment change [equip-event]: L ... R ... ready=... readyKnown=...`. The hand cache is committed before any sheathe request so equip notifications caused by recovery cannot recurse as a new change.
+- `IsWeaponDrawn()` is not used as a decision input for this feature. The existing ActionEvent-derived ready latch alone decides whether a changed hand requires state preservation. Unknown ready state is treated as not confirmed ready.
+- If a hand changed while ready, the runtime-confirmed v0.2.9 transaction is preserved unchanged: ForceCreatureSheathe -> EndSheathe -> exactly one deferred SKSE redraw task -> EndDraw.
+- Removed NiNodeUpdateEvent from hand-equipment detection. NiNodeUpdateEvent remains registered solely for existing weapon-visual resynchronization.
+- No input/hotkey inference, menu snapshot detector, MinHook, trampoline, polling, timer, inventory scan, actor refresh, save serialization, or manual weapon/spell/shield classification was added.
+- Experimental test candidate only. Do not promote to stable until raw TESEquipEvent delivery and settled hand comparison are validated for menu and real-time equipment paths.
+
+
+2026-08-31 - v0.2.12 TESEquipEvent validation / main-branch promotion
+- Corrected the historical v0.2.4 conclusion that the v0.2.3 test proved TESEquipEvent was unreliable. Inspection of the v0.2.3 source showed its diagnostic occurred only after a `player->IsWeaponDrawn()` gate. Later converted-creature testing proved that query can report false while the creature is visibly ready/drawn, so the old absence of the diagnostic did not establish that TESEquipEvent failed to fire.
+- v0.2.12 restored TESEquipEvent as the sole equipment-activity notification source without restoring the old v0.2.3 decision logic. Both equip and unequip events are observed; `baseObject` is diagnostic only.
+- The event schedules one settled-state check outside equipment menus. While Inventory, Magic, or Favorites is open, it sets a pending flag; menu close schedules the same one-shot check. `GetEquippedObject(left/right)` remains the authoritative hand-state result.
+- The ActionEvent-derived ready latch is the only ready-state authority for this equipment-preservation feature. `IsWeaponDrawn()` is not used for the decision, and unknown cold-start readiness does not fall back to the known-bad query.
+- Runtime validation confirmed raw player TESEquipEvent delivery for equip and unequip activity, authoritative hand-change detection, no-op filtering for irrelevant events, spell-to-spell replacement coalescing, and the complete ready-state preservation sequence: hand change -> forced sheathe -> EndSheathe -> one deferred redraw task -> EndDraw.
+- Runtime validation also confirmed native-first spellcasting remains intact after the equipment transaction; a newly equipped spell reached native MagicCaster ownership and preserved native release timing.
+- Raw TESEquipEvent diagnostics also showed events from other actors, while player-only filtering prevented those events from creating player hand transactions.
+- NiNodeUpdateEvent remains registered only for weapon-visual resynchronization and no longer participates in hand-equipment detection.
+- No MinHook, trampoline, polling, timer, input/hotkey inference, inventory scan, actor refresh, save serialization, or manual hand-form classification is used by this subsystem.
+- User confirmed v0.2.12 appears functional all around. v0.2.12 is promoted to the main branch as the validated current UPC checkpoint.

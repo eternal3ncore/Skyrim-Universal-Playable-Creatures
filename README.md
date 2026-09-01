@@ -31,7 +31,23 @@ UPC loads creature definitions from namespaced race catalogs in:
 Data\SKSE\Plugins\UniversalPlayableCreatures\
 ```
 
-Each row independently defines whether the race is enabled for UPC controls and which spell hand policy applies. `playable` and `spellHand` are independent. A disabled row may still retain handedness metadata. `spellHand` accepts `Left`, `Right`, or `Both`. Invalid or unresolved rows are isolated and logged instead of preventing other catalogs from loading.
+Each row independently defines whether the race is enabled for UPC controls and which spell hand policy applies:
+
+```json
+{
+  "schemaVersion": 2,
+  "format": "UniversalPlayableCreaturesRaceCatalog",
+  "races": [
+    {
+      "race": "SomePlugin.esm|00123456",
+      "playable": false,
+      "spellHand": "Left"
+    }
+  ]
+}
+```
+
+`playable` and `spellHand` are independent. A disabled row may still retain handedness metadata. `spellHand` accepts `Left`, `Right`, or `Both`. Invalid or unresolved rows are isolated and logged instead of preventing other catalogs from loading.
 
 The packaged catalogs contain 122 Skyrim/Dawnguard/Dragonborn races, 223 Oblivion-converted races, and 68 Morroblivion races, for 413 records total.
 
@@ -96,8 +112,10 @@ Default settings:
   "EnableCreatureRaceMenuCrashFix": true,
   "EnableThirdPersonCameraNode": true,
   "CameraNodeHeightZ": 121.0,
+
   "EnableCreatureSpellHandRestriction": true,
   "PlayableHumanoidSpellHand": "Both",
+
   "EnableHideUnsupportedEquippedWeapons": true,
   "EnableHideSheathedWeapons": true
 }

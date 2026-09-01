@@ -12,4 +12,18 @@ cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE="$Toolchain" -DVCPKG_TARGET_TRIPLET=x
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 cmake --build build --config Release
-exit $LASTEXITCODE
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$Dll = Get-ChildItem -Path build -Recurse -Filter UniversalPlayableCreatures.dll |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
+if (-not $Dll) {
+    throw "Build succeeded but UniversalPlayableCreatures.dll was not found"
+}
+
+$RuntimeDir = Join-Path $ProjectRoot "runtime\Data\SKSE\Plugins"
+New-Item -ItemType Directory -Force -Path $RuntimeDir | Out-Null
+Copy-Item $Dll.FullName -Destination (Join-Path $RuntimeDir "UniversalPlayableCreatures.dll") -Force
+
+Write-Host "Built: $($Dll.FullName)"
+Write-Host "Staged: $(Join-Path $RuntimeDir 'UniversalPlayableCreatures.dll')"

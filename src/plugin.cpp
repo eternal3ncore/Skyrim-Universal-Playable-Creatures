@@ -1,222 +1,33 @@
 #include "PCH.h"
+#include "RaceCatalog.h"
+#include "UCCCore.h"
+
+#include <nlohmann/json.hpp>
 
 namespace
 {
-    constexpr REL::Version kPluginVersion{ 0, 1, 6, 0 };
+    constexpr REL::Version kPluginVersion{ 0, 2, 12, 0 };
     constexpr auto kPluginName = "UniversalPlayableCreatures"sv;
     constexpr auto kConfigPath = "Data/SKSE/Plugins/UniversalPlayableCreatures.json"sv;
-    constexpr auto kRaceConfigDir = "Data/SKSE/Plugins/UniversalPlayableCreatures"sv;
     constexpr char kRaceMenuName[] = "RaceSex Menu";
     constexpr char kCamName[] = "Camera3rd [Cam3]";
 
-    enum class HandPolicy
-    {
-        kLeft,
-        kRight,
-        kBoth
-    };
+    using HandPolicy = UPC::HandPolicy;
 
     struct Config
     {
         bool enableRaceMenuCrashFix{ true };
         bool enableCameraNode{ true };
         bool enableSpellHandRestriction{ true };
+        bool enableHideUnsupportedEquippedWeapons{ true };
         bool enableHideSheathedWeapons{ true };
 
         float cameraNodeHeightZ{ 121.0f };
-
-        bool enableCreatureRacesForSpellHandRestriction{ true };
-        bool enablePlayableHumanoidRacesForSpellHandRestriction{ false };
-        HandPolicy skyrimCreatureSpellHand{ HandPolicy::kLeft };
-        HandPolicy convertedTES4CreatureSpellHand{ HandPolicy::kRight };
+        HandPolicy playableHumanoidSpellHand{ HandPolicy::kBoth };
 
     };
 
     Config g_config;
-
-    std::optional<bool> ReadJsonBool(std::string_view text, std::string_view key)
-    {
-        const auto quotedKey = std::format("\"{}\"", key);
-        auto pos = text.find(quotedKey);
-        if (pos == std::string_view::npos) {
-            return std::nullopt;
-        }
-        pos = text.find(':', pos + quotedKey.size());
-        if (pos == std::string_view::npos) {
-            return std::nullopt;
-        }
-        ++pos;
-        while (pos < text.size() && std::isspace(static_cast<unsigned char>(text[pos]))) {
-            ++pos;
-        }
-        if (text.substr(pos, 4) == "true") {
-            return true;
-        }
-        if (text.substr(pos, 5) == "false") {
-            return false;
-        }
-        return std::nullopt;
-    }
-
-    std::optional<std::string> ReadJsonString(std::string_view text, std::string_view key)
-    {
-        const auto quotedKey = std::format("\"{}\"", key);
-        auto pos = text.find(quotedKey);
-        if (pos == std::string_view::npos) {
-            return std::nullopt;
-        }
-        pos = text.find(':', pos + quotedKey.size());
-        if (pos == std::string_view::npos) {
-            return std::nullopt;
-        }
-        pos = text.find('"', pos + 1);
-        if (pos == std::string_view::npos) {
-            return std::nullopt;
-        }
-        const auto end = text.find('"', pos + 1);
-        if (end == std::string_view::npos) {
-            return std::nullopt;
-        }
-        return std::string(text.substr(pos + 1, end - pos - 1));
-    }
-
-    std::optional<float> ReadJsonFloat(std::string_view text, std::string_view key)
-    {
-        const auto quotedKey = std::format("\"{}\"", key);
-        auto pos = text.find(quotedKey);
-        if (pos == std::string_view::npos) {
-            return std::nullopt;
-        }
-        pos = text.find(':', pos + quotedKey.size());
-        if (pos == std::string_view::npos) {
-            return std::nullopt;
-        }
-        ++pos;
-        while (pos < text.size() && std::isspace(static_cast<unsigned char>(text[pos]))) {
-            ++pos;
-        }
-        const auto end = text.find_first_not_of("+-0123456789.eE", pos);
-        try {
-            return std::stof(std::string(text.substr(pos, end == std::string_view::npos ? end : end - pos)));
-        } catch (...) {
-            return std::nullopt;
-        }
-    }
-
-    std::vector<std::string> ReadJsonStringArray(std::string_view text, std::string_view key)
-    {
-        std::vector<std::string> values;
-        const auto quotedKey = std::format("\"{}\"", key);
-        const auto keyPos = text.find(quotedKey);
-        if (keyPos == std::string_view::npos) {
-            return values;
-        }
-
-        const auto colon = text.find(':', keyPos + quotedKey.size());
-        if (colon == std::string_view::npos) {
-            return values;
-        }
-
-        const auto open = text.find('[', colon + 1);
-        if (open == std::string_view::npos) {
-            return values;
-        }
-
-        // Parse the array structurally instead of looking for the first ']'.
-        // Race catalog files intentionally allow JSONC-style // and /* */ comments,
-        // and those comments may contain text such as [EditorID]. A naive find(']')
-        // therefore truncated Oblivion/Morroblivion after their first entry.
-        std::size_t arrayDepth = 1;
-        bool inLineComment = false;
-        bool inBlockComment = false;
-        bool inString = false;
-        bool escaped = false;
-        std::string current;
-
-        for (std::size_t i = open + 1; i < text.size() && arrayDepth > 0; ++i) {
-            const char c = text[i];
-            const char next = (i + 1 < text.size()) ? text[i + 1] : '\0';
-
-            if (inLineComment) {
-                if (c == '\n' || c == '\r') {
-                    inLineComment = false;
-                }
-                continue;
-            }
-
-            if (inBlockComment) {
-                if (c == '*' && next == '/') {
-                    inBlockComment = false;
-                    ++i;
-                }
-                continue;
-            }
-
-            if (inString) {
-                if (escaped) {
-                    switch (c) {
-                    case '"': current.push_back('"'); break;
-                    case '\\': current.push_back('\\'); break;
-                    case '/': current.push_back('/'); break;
-                    case 'b': current.push_back('\b'); break;
-                    case 'f': current.push_back('\f'); break;
-                    case 'n': current.push_back('\n'); break;
-                    case 'r': current.push_back('\r'); break;
-                    case 't': current.push_back('\t'); break;
-                    default:
-                        // Race entries are plugin|FormID strings and do not require
-                        // unicode escapes; preserve unknown escapes literally.
-                        current.push_back(c);
-                        break;
-                    }
-                    escaped = false;
-                    continue;
-                }
-
-                if (c == '\\') {
-                    escaped = true;
-                    continue;
-                }
-                if (c == '"') {
-                    inString = false;
-                    if (arrayDepth == 1) {
-                        values.push_back(current);
-                    }
-                    current.clear();
-                    continue;
-                }
-                current.push_back(c);
-                continue;
-            }
-
-            if (c == '/' && next == '/') {
-                inLineComment = true;
-                ++i;
-                continue;
-            }
-            if (c == '/' && next == '*') {
-                inBlockComment = true;
-                ++i;
-                continue;
-            }
-            if (c == '"') {
-                inString = true;
-                escaped = false;
-                current.clear();
-                continue;
-            }
-            if (c == '[') {
-                ++arrayDepth;
-                continue;
-            }
-            if (c == ']') {
-                --arrayDepth;
-                continue;
-            }
-        }
-
-        return values;
-    }
 
     std::optional<HandPolicy> ParseHandPolicy(std::string value)
     {
@@ -261,15 +72,6 @@ namespace
         return race && !race->data.flags.any(RE::RACE_DATA::Flag::kFaceGenHead);
     }
 
-    bool IsConvertedTES4Race(const RE::TESRace* race)
-    {
-        if (!race) {
-            return false;
-        }
-        const char* editorID = race->GetFormEditorID();
-        return editorID && std::string_view(editorID).starts_with("TES4");
-    }
-
     void SetupLog()
     {
         auto path = logger::log_directory();
@@ -290,28 +92,58 @@ namespace
         std::ifstream file(std::filesystem::path(std::string(kConfigPath)), std::ios::binary);
         if (!file) {
             logger::warn("Config not found at '{}'; using defaults", kConfigPath);
+            UCCCore::Configure({
+                g_config.enableHideUnsupportedEquippedWeapons,
+                g_config.enableHideSheathedWeapons });
             return;
         }
 
-        const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        if (const auto v = ReadJsonBool(text, "EnableCreatureRaceMenuCrashFix")) g_config.enableRaceMenuCrashFix = *v;
-        if (const auto v = ReadJsonBool(text, "EnableThirdPersonCameraNode")) g_config.enableCameraNode = *v;
-        if (const auto v = ReadJsonBool(text, "EnableCreatureSpellHandRestriction")) g_config.enableSpellHandRestriction = *v;
-        if (const auto v = ReadJsonBool(text, "EnableHideSheathedWeapons")) g_config.enableHideSheathedWeapons = *v;
-        if (const auto v = ReadJsonFloat(text, "CameraNodeHeightZ")) g_config.cameraNodeHeightZ = *v;
-        if (const auto v = ReadJsonBool(text, "EnablePlayableHumanoidRacesForSpellHandRestriction")) g_config.enablePlayableHumanoidRacesForSpellHandRestriction = *v;
-        if (const auto v = ReadJsonBool(text, "EnableCreatureRacesForSpellHandRestriction")) g_config.enableCreatureRacesForSpellHandRestriction = *v;
-        if (const auto v = ReadJsonString(text, "SkyrimCreatureSpellHand")) {
-            if (const auto policy = ParseHandPolicy(*v)) g_config.skyrimCreatureSpellHand = *policy;
-        }
-        if (const auto v = ReadJsonString(text, "ConvertedTES4CreatureSpellHand")) {
-            if (const auto policy = ParseHandPolicy(*v)) g_config.convertedTES4CreatureSpellHand = *policy;
+        try {
+            const std::string text(
+                (std::istreambuf_iterator<char>(file)),
+                std::istreambuf_iterator<char>());
+            const auto json = nlohmann::json::parse(text, nullptr, true, true);
+
+            g_config.enableRaceMenuCrashFix = json.value(
+                "EnableCreatureRaceMenuCrashFix", g_config.enableRaceMenuCrashFix);
+            g_config.enableCameraNode = json.value(
+                "EnableThirdPersonCameraNode", g_config.enableCameraNode);
+            g_config.enableSpellHandRestriction = json.value(
+                "EnableCreatureSpellHandRestriction", g_config.enableSpellHandRestriction);
+            g_config.enableHideUnsupportedEquippedWeapons = json.value(
+                "EnableHideUnsupportedEquippedWeapons", g_config.enableHideUnsupportedEquippedWeapons);
+            g_config.enableHideSheathedWeapons = json.value(
+                "EnableHideSheathedWeapons", g_config.enableHideSheathedWeapons);
+            g_config.cameraNodeHeightZ = json.value(
+                "CameraNodeHeightZ", g_config.cameraNodeHeightZ);
+
+            if (const auto it = json.find("PlayableHumanoidSpellHand");
+                it != json.end() && it->is_string()) {
+                const auto value = it->get<std::string>();
+                if (const auto policy = ParseHandPolicy(value)) {
+                    g_config.playableHumanoidSpellHand = *policy;
+                } else {
+                    logger::warn(
+                        "Invalid PlayableHumanoidSpellHand='{}'; using Both",
+                        value);
+                }
+            }
+        } catch (const std::exception& e) {
+            logger::error("Config parse failed: {}; using defaults", e.what());
+            g_config = {};
         }
 
-        logger::info("Config loaded: RaceMenuCrashFix={} CameraNode={} SpellHandRestriction={} HideSheathedWeapons={}",
+        UCCCore::Configure({
+            g_config.enableHideUnsupportedEquippedWeapons,
+            g_config.enableHideSheathedWeapons });
+
+        logger::info(
+            "Config loaded: RaceMenuCrashFix={} CameraNode={} SpellHandRestriction={} HumanoidSpellHand={} HideUnsupportedEquipped={} HideSheathed={}",
             g_config.enableRaceMenuCrashFix,
             g_config.enableCameraNode,
             g_config.enableSpellHandRestriction,
+            PolicyName(g_config.playableHumanoidSpellHand),
+            g_config.enableHideUnsupportedEquippedWeapons,
             g_config.enableHideSheathedWeapons);
     }
 
@@ -411,86 +243,6 @@ namespace
             return g_originalA && g_originalB;
         }
 
-        std::size_t ApplyPlayableRaceFile(const std::filesystem::path& path, RE::TESDataHandler* data)
-        {
-            std::ifstream file(path, std::ios::binary);
-            if (!file) {
-                logger::warn("Playable-race config could not be opened: {}", path.filename().string());
-                return 0;
-            }
-
-            const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-            const auto entries = ReadJsonStringArray(text, "playableRaces");
-            logger::info("Playable-race config {}: {} entr{} parsed", path.filename().string(), entries.size(), entries.size() == 1 ? "y" : "ies");
-            std::size_t applied = 0;
-
-            for (const auto& entry : entries) {
-                const auto bar = entry.rfind('|');
-                if (bar == std::string::npos) {
-                    logger::warn("{}: entry missing plugin|formid separator: {}", path.filename().string(), entry);
-                    continue;
-                }
-                try {
-                    const auto plugin = entry.substr(0, bar);
-                    const auto form = static_cast<RE::FormID>(std::stoul(entry.substr(bar + 1), nullptr, 16));
-                    if (auto* race = data->LookupForm<RE::TESRace>(form, plugin)) {
-                        race->data.flags.set(RE::RACE_DATA::Flag::kPlayable);
-                        logger::info("Playable race enabled [{}]: {}", path.filename().string(), entry);
-                        ++applied;
-                    } else {
-                        logger::warn("Playable race unresolved [{}]: {}", path.filename().string(), entry);
-                    }
-                } catch (...) {
-                    logger::warn("Playable race invalid [{}]: {}", path.filename().string(), entry);
-                }
-            }
-
-            logger::info("Playable-race config {}: {} applied", path.filename().string(), applied);
-            return applied;
-        }
-
-        void ApplyPlayableRaceConfig()
-        {
-            if (!g_config.enableRaceMenuCrashFix) {
-                return;
-            }
-
-            auto* data = RE::TESDataHandler::GetSingleton();
-            if (!data) {
-                logger::warn("Playable-race configs skipped: TESDataHandler unavailable");
-                return;
-            }
-
-            const std::filesystem::path dir{ std::string(kRaceConfigDir) };
-            std::error_code ec;
-            if (!std::filesystem::is_directory(dir, ec)) {
-                logger::warn("Playable-race config folder not found: {}", kRaceConfigDir);
-                return;
-            }
-
-            std::vector<std::filesystem::path> files;
-            for (std::filesystem::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
-                if (!it->is_regular_file()) {
-                    continue;
-                }
-                auto ext = it->path().extension().string();
-                std::ranges::transform(ext, ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-                if (ext == ".json") {
-                    files.push_back(it->path());
-                }
-            }
-            if (ec) {
-                logger::warn("Playable-race config folder scan failed: {}", ec.message());
-                return;
-            }
-
-            std::ranges::sort(files);
-            std::size_t totalApplied = 0;
-            for (const auto& path : files) {
-                totalApplied += ApplyPlayableRaceFile(path, data);
-            }
-            logger::info("Playable-race configs loaded: {} file(s), {} race(s) applied", files.size(), totalApplied);
-        }
     }
 
     namespace CameraNode
@@ -620,14 +372,17 @@ namespace
             const bool playable = race->data.flags.any(RE::RACE_DATA::Flag::kPlayable);
 
             if (!faceGen) {
-                if (!g_config.enableCreatureRacesForSpellHandRestriction) {
-                    return { false, HandPolicy::kBoth };
+                // Creature handedness is explicit per race.  Missing rows are
+                // intentionally unrestricted rather than guessed from origin.
+                if (const auto policy = UPC::RaceCatalog::GetSpellHand(race)) {
+                    return { *policy != HandPolicy::kBoth, *policy };
                 }
-                return { true, IsConvertedTES4Race(race) ? g_config.convertedTES4CreatureSpellHand : g_config.skyrimCreatureSpellHand };
+                return { false, HandPolicy::kBoth };
             }
 
-            if (playable && g_config.enablePlayableHumanoidRacesForSpellHandRestriction) {
-                return { true, HandPolicy::kBoth };
+            // Humanoids do not need catalog rows.  Both is the default/no-op.
+            if (playable && g_config.playableHumanoidSpellHand != HandPolicy::kBoth) {
+                return { true, g_config.playableHumanoidSpellHand };
             }
 
             return { false, HandPolicy::kBoth };
@@ -780,127 +535,12 @@ namespace
 
     }
 
-    namespace WeaponHide
-    {
-        constexpr std::array<RE::BIPED_OBJECT, 8> kWeaponBipedSlots{
-            RE::BIPED_OBJECT::kHandToHandMelee,
-            RE::BIPED_OBJECT::kOneHandSword,
-            RE::BIPED_OBJECT::kOneHandDagger,
-            RE::BIPED_OBJECT::kOneHandAxe,
-            RE::BIPED_OBJECT::kOneHandMace,
-            RE::BIPED_OBJECT::kTwoHandMelee,
-            RE::BIPED_OBJECT::kBow,
-            RE::BIPED_OBJECT::kStaff
-        };
-
-        constexpr RE::BIPED_OBJECT kCrossbowSlot = RE::BIPED_OBJECT::kCrossbow;
-        bool g_hidden = false;
-
-        std::size_t SetNativeWeaponDisplayHidden(RE::PlayerCharacter* player, bool hide)
-        {
-            if (!g_config.enableHideSheathedWeapons || !player) {
-                return 0;
-            }
-            const auto& biped = player->GetBiped(false);
-            if (!biped) {
-                logger::debug("Sheathed weapon hide: third-person BipedAnim unavailable");
-                return 0;
-            }
-
-            std::size_t changed = 0;
-            auto apply = [&](RE::BIPED_OBJECT slot) {
-                const auto index = static_cast<std::size_t>(slot);
-                if (index >= static_cast<std::size_t>(RE::BIPED_OBJECT::kTotal)) {
-                    return;
-                }
-                auto& part = biped->objects[index];
-                if (part.partClone) {
-                    part.partClone->SetAppCulled(hide);
-                    ++changed;
-                }
-            };
-
-            for (const auto slot : kWeaponBipedSlots) {
-                apply(slot);
-            }
-            apply(kCrossbowSlot);
-            g_hidden = hide && changed > 0;
-            if (changed > 0) {
-                logger::info("Sheathed weapon display {}: {} active clone(s)", hide ? "hidden" : "restored", changed);
-            }
-            return changed;
-        }
-
-        bool IsCreaturePlayer(RE::Actor* actor, RE::PlayerCharacter*& outPlayer)
-        {
-            outPlayer = nullptr;
-            auto* player = RE::PlayerCharacter::GetSingleton();
-            if (!g_config.enableHideSheathedWeapons || !actor || !player || actor != player) {
-                return false;
-            }
-            if (!IsCreatureRaceByFaceGen(player->GetRace())) {
-                if (g_hidden) {
-                    SetNativeWeaponDisplayHidden(player, false);
-                }
-                g_hidden = false;
-                return false;
-            }
-            outPlayer = player;
-            return true;
-        }
-
-        void SyncFromEngineState(std::string_view reason)
-        {
-            if (!g_config.enableHideSheathedWeapons) {
-                return;
-            }
-            auto* player = RE::PlayerCharacter::GetSingleton();
-            if (!player) {
-                return;
-            }
-            if (!IsCreatureRaceByFaceGen(player->GetRace())) {
-                if (g_hidden) {
-                    SetNativeWeaponDisplayHidden(player, false);
-                }
-                g_hidden = false;
-                return;
-            }
-
-            const auto weaponState = player->GetWeaponState();
-            const bool shouldHide = weaponState == RE::WEAPON_STATE::kSheathed;
-            const auto changed = SetNativeWeaponDisplayHidden(player, shouldHide);
-            logger::info("Weapon state sync [{}]: state={} hide={} clones={}", reason, static_cast<std::uint32_t>(weaponState), shouldHide, changed);
-        }
-
-        void OnAction(const SKSE::ActionEvent* event)
-        {
-            if (!event) {
-                return;
-            }
-            RE::PlayerCharacter* player = nullptr;
-            if (!IsCreaturePlayer(event->actor, player)) {
-                return;
-            }
-            switch (event->type.get()) {
-            case SKSE::ActionEvent::Type::kBeginDraw:
-            case SKSE::ActionEvent::Type::kEndDraw:
-                SetNativeWeaponDisplayHidden(player, false);
-                break;
-            case SKSE::ActionEvent::Type::kEndSheathe:
-                SetNativeWeaponDisplayHidden(player, true);
-                break;
-            default:
-                break;
-            }
-        }
-    }
-
     class EventRouter final :
         public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
         public RE::BSTEventSink<RE::TESSwitchRaceCompleteEvent>,
         public RE::BSTEventSink<RE::TESObjectLoadedEvent>,
-        public RE::BSTEventSink<RE::InputEvent*>,
-        public RE::BSTEventSink<SKSE::ActionEvent>
+        public RE::BSTEventSink<RE::TESEquipEvent>,
+        public RE::BSTEventSink<RE::InputEvent*>
     {
     public:
         static EventRouter* GetSingleton()
@@ -911,6 +551,7 @@ namespace
 
         RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event, RE::BSTEventSource<RE::MenuOpenCloseEvent>*) override
         {
+            UCCCore::ProcessMenuEvent(event);
             if (!event) {
                 return RE::BSEventNotifyControl::kContinue;
             }
@@ -935,7 +576,7 @@ namespace
             if (event && player && event->subject.get() == player) {
                 CameraNode::OnRaceSwitch();
                 SpellHandRestriction::RefreshPlayerState("RaceSwitchComplete");
-                WeaponHide::SyncFromEngineState("race-switch");
+                UCCCore::RefreshCurrentPlayer("RaceSwitchComplete");
             }
             return RE::BSEventNotifyControl::kContinue;
         }
@@ -944,13 +585,23 @@ namespace
         {
             if (event && event->loaded && event->formID == 0x14) {
                 CameraNode::InjectIntoCurrent3D("player-object-loaded");
-                WeaponHide::SyncFromEngineState("player-object-loaded");
             }
+            return RE::BSEventNotifyControl::kContinue;
+        }
+
+        RE::BSEventNotifyControl ProcessEvent(const RE::TESEquipEvent* event, RE::BSTEventSource<RE::TESEquipEvent>*) override
+        {
+            UCCCore::ProcessEquipEvent(event);
             return RE::BSEventNotifyControl::kContinue;
         }
 
         RE::BSEventNotifyControl ProcessEvent(RE::InputEvent* const* events, RE::BSTEventSource<RE::InputEvent*>*) override
         {
+            // One BSInputDeviceManager sink owns all merged UPC/UCC input. UCC
+            // processes creature controls first; camera POV handling is an
+            // independent lightweight pass over the same event chain.
+            UCCCore::ProcessInputEvents(events);
+
             if (!g_config.enableCameraNode || !events || !*events) {
                 return RE::BSEventNotifyControl::kContinue;
             }
@@ -967,50 +618,53 @@ namespace
             }
             return RE::BSEventNotifyControl::kContinue;
         }
-
-        RE::BSEventNotifyControl ProcessEvent(const SKSE::ActionEvent* event, RE::BSTEventSource<SKSE::ActionEvent>*) override
-        {
-            WeaponHide::OnAction(event);
-            return RE::BSEventNotifyControl::kContinue;
-        }
     };
 
-    void RegisterSinks()
+    bool g_inputSinkRegistered = false;
+    bool g_dataSinksRegistered = false;
+
+    void RegisterInputSink()
     {
+        if (g_inputSinkRegistered) {
+            return;
+        }
+        if (auto* input = RE::BSInputDeviceManager::GetSingleton()) {
+            input->AddEventSink<RE::InputEvent*>(EventRouter::GetSingleton());
+            g_inputSinkRegistered = true;
+            logger::info("Shared UPC/UCC input event routing registered");
+        } else {
+            logger::error("Input device manager unavailable; UPC/UCC controls not registered");
+        }
+    }
+
+    void RegisterDataSinks()
+    {
+        if (g_dataSinksRegistered) {
+            return;
+        }
+
         auto* router = EventRouter::GetSingleton();
+        bool complete = true;
 
         if (auto* ui = RE::UI::GetSingleton()) {
             ui->AddEventSink<RE::MenuOpenCloseEvent>(router);
             logger::info("Menu event routing registered");
         } else {
             logger::error("UI unavailable; menu routing not registered");
+            complete = false;
         }
 
         if (auto* holder = RE::ScriptEventSourceHolder::GetSingleton()) {
             holder->AddEventSink<RE::TESSwitchRaceCompleteEvent>(router);
             holder->AddEventSink<RE::TESObjectLoadedEvent>(router);
-            logger::info("Race/ObjectLoaded event routing registered");
+            holder->AddEventSink<RE::TESEquipEvent>(router);
+            logger::info("Race/ObjectLoaded/Equip event routing registered");
         } else {
-            logger::error("ScriptEventSourceHolder unavailable; race/object routing not registered");
+            logger::error("ScriptEventSourceHolder unavailable; race/object/equip routing not registered");
+            complete = false;
         }
 
-        if (g_config.enableCameraNode) {
-            if (auto* input = RE::BSInputDeviceManager::GetSingleton()) {
-                input->AddEventSink<RE::InputEvent*>(router);
-                logger::info("POV input event routing registered");
-            } else {
-                logger::warn("Input device manager unavailable; POV binding event not registered");
-            }
-        }
-
-        if (g_config.enableHideSheathedWeapons) {
-            if (auto* source = SKSE::GetActionEventSource()) {
-                source->AddEventSink(router);
-                logger::info("Weapon ActionEvent routing registered");
-            } else {
-                logger::warn("ActionEvent source unavailable");
-            }
-        }
+        g_dataSinksRegistered = complete;
     }
 
     void MessageHandler(SKSE::MessagingInterface::Message* message)
@@ -1018,15 +672,21 @@ namespace
         if (!message) {
             return;
         }
+
         switch (message->type) {
+        case SKSE::MessagingInterface::kInputLoaded:
+            RegisterInputSink();
+            break;
+
         case SKSE::MessagingInterface::kDataLoaded:
             LoadConfig();
-            RaceMenuFix::ApplyPlayableRaceConfig();
-            RegisterSinks();
+            UPC::RaceCatalog::Load(g_config.enableRaceMenuCrashFix);
+            RegisterDataSinks();
             RaceMenuFix::ApplyHooks();
             SpellHandRestriction::RefreshPlayerState("DataLoaded");
             CameraNode::InjectIntoCurrent3D("DataLoaded");
             break;
+
         case SKSE::MessagingInterface::kPostLoadGame:
             SpellHandRestriction::RefreshPlayerState("PostLoadGame");
             if (auto* player = RE::PlayerCharacter::GetSingleton()) {
@@ -1034,20 +694,23 @@ namespace
                 SpellHandRestriction::EnforceCurrentSelection(player);
             }
             CameraNode::InjectIntoCurrent3D("PostLoadGame");
-            WeaponHide::SyncFromEngineState("PostLoadGame");
             break;
+
         case SKSE::MessagingInterface::kNewGame:
             SpellHandRestriction::RefreshPlayerState("NewGame");
             CameraNode::InjectIntoCurrent3D("NewGame");
-            WeaponHide::SyncFromEngineState("NewGame");
             break;
-        case SKSE::MessagingInterface::kPreLoadGame:
-            WeaponHide::g_hidden = false;
-            break;
+
         default:
             break;
         }
+
+        // UCC is an internal module, not a second SKSE plugin. Forward the same
+        // lifecycle message through the sole UPC listener after host-owned state
+        // (notably config/catalog loading) is ready.
+        UCCCore::HandleSKSEMessage(message);
     }
+
 }
 
 SKSEPluginInfo(
@@ -1065,10 +728,17 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
 
     auto* messaging = SKSE::GetMessagingInterface();
     if (!messaging || !messaging->RegisterListener(MessageHandler)) {
-        logger::critical("Failed to register SKSE messaging listener");
+        logger::critical("Failed to register UPC SKSE messaging listener");
         return false;
     }
 
-    logger::info("SKSE messaging registered; no save serialization is used");
+    if (!UCCCore::Initialize(skse)) {
+        logger::critical("Universal Creature Controls core initialization failed");
+        return false;
+    }
+
+    logger::info("Unified UPC/UCC lifecycle registered; one SKSE listener, one input route, no save serialization");
     return true;
 }
+
+

@@ -1,7 +1,8 @@
 {
   "name": "universal-playable-creatures",
-  "version-string": "0.1.6",
+  "version-string": "0.2.12",
   "dependencies": [
-    "commonlibsse-ng-flatrim"
+    "commonlibsse-ng-flatrim",
+    "nlohmann-json"
   ]
 }
