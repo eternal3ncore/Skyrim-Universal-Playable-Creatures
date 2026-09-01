@@ -4,8 +4,6 @@
 
 namespace
 {
-    UCCCore::Config g_config{};
-
     bool g_forward = false;
     bool g_back = false;
     bool g_strafeLeft = false;
@@ -156,13 +154,13 @@ namespace
     bool g_hasUsableAttackData = false;
     bool g_attackDataArmedByUCC = false;
 
-    struct HiddenUnsupportedWeaponClone
+    struct HiddenWeaponClone
     {
         RE::NiPointer<RE::NiAVObject> clone;
         bool wasCulled = false;
     };
 
-    std::vector<HiddenUnsupportedWeaponClone> g_hiddenUnsupportedWeaponClones;
+    std::vector<HiddenWeaponClone> g_hiddenWeaponClones;
 
     void ForcePlayerCollisionEnabled();
     void ClearActiveAttackData(RE::PlayerCharacter* player);
@@ -177,10 +175,7 @@ namespace
         bool leftHand,
         float effectiveness);
     PendingFallbackCast& PendingCastForHand(bool leftHand);
-    void RestoreUnsupportedWeaponVisual(std::string_view reason);
-    void SyncUnsupportedEquippedWeaponVisual(
-        RE::PlayerCharacter* player,
-        std::string_view reason);
+    void RestoreWeaponVisual(std::string_view reason);
     void SyncConfiguredWeaponVisual(
         RE::PlayerCharacter* player,
         std::string_view reason);
@@ -238,7 +233,7 @@ namespace
             // UCC may now own either the unsupported-drawn hide or the optional
             // sheathed hide, so leaving UniversalCreature policy always releases
             // the cull state UCC itself owns.
-            RestoreUnsupportedWeaponVisual("creature-mode-exit");
+            RestoreWeaponVisual("creature-mode-exit");
         }
 
         g_leftSelfConcentrationHeld = false;
@@ -395,7 +390,7 @@ namespace
         // A race change can change both attack capability and the configured
         // weapon-visibility policy. Release any UCC-owned cull from the previous
         // race, rebuild capability once, then reconcile the current 3D.
-        RestoreUnsupportedWeaponVisual("race-change");
+        RestoreWeaponVisual("race-change");
         RefreshAttackCapabilityProfile(
             g_inputPolicy == CreatureInputPolicy::kUniversalCreature ? race : nullptr);
         if (player) {
@@ -832,67 +827,23 @@ namespace
     }
 
 
-    bool UsesBottomH2HFallback(RE::PlayerCharacter* player)
+    void RestoreWeaponVisual(std::string_view reason)
     {
-        if (!player ||
-            g_inputPolicy != CreatureInputPolicy::kUniversalCreature) {
-            return false;
-        }
-
-        const auto normal = FilterAttackContext(player, g_cachedNormalAttacks);
-        if (normal.empty()) {
-            return false;
-        }
-
-        const auto equippedFamily = GetNormalWeaponFamily(player);
-        if (equippedFamily != NormalWeaponFamily::kOneHand &&
-            equippedFamily != NormalWeaponFamily::kTwoHand) {
-            return false;
-        }
-
-        // Mirror BuildNormalAttackPool's priority exactly. The weapon is hidden
-        // only when the normal attack selector must reach its final armed-melee
-        // -> H2H compatibility path; an exact, neutral, or 1H<->2H attack keeps
-        // the equipped weapon visible.
-        if (!FilterNormalAttackFamily(normal, equippedFamily).empty()) {
-            return false;
-        }
-
-        for (const auto& choice : normal) {
-            if (!choice.traits.HasExplicitWeaponFamily()) {
-                return false;
-            }
-        }
-
-        const auto alternateFamily =
-            equippedFamily == NormalWeaponFamily::kOneHand ?
-                NormalWeaponFamily::kTwoHand : NormalWeaponFamily::kOneHand;
-        if (!FilterNormalAttackFamily(normal, alternateFamily).empty()) {
-            return false;
-        }
-
-        return !FilterNormalAttackFamily(
-                    normal,
-                    NormalWeaponFamily::kUnarmed).empty();
-    }
-
-    void RestoreUnsupportedWeaponVisual(std::string_view reason)
-    {
-        if (g_hiddenUnsupportedWeaponClones.empty()) {
+        if (g_hiddenWeaponClones.empty()) {
             return;
         }
 
         std::size_t restored = 0;
-        for (auto& entry : g_hiddenUnsupportedWeaponClones) {
+        for (auto& entry : g_hiddenWeaponClones) {
             if (entry.clone) {
                 entry.clone->SetAppCulled(entry.wasCulled);
                 ++restored;
             }
         }
-        g_hiddenUnsupportedWeaponClones.clear();
+        g_hiddenWeaponClones.clear();
 
         spdlog::info(
-            "Unsupported equipped melee weapon visual restored [{}]: clones={}",
+            "Creature weapon visual restored [{}]: clones={}",
             reason,
             restored);
     }
@@ -914,38 +865,34 @@ namespace
 
             auto* clone = object.partClone.get();
             const auto alreadyOwned = std::find_if(
-                g_hiddenUnsupportedWeaponClones.begin(),
-                g_hiddenUnsupportedWeaponClones.end(),
-                [clone](const HiddenUnsupportedWeaponClone& entry) {
+                g_hiddenWeaponClones.begin(),
+                g_hiddenWeaponClones.end(),
+                [clone](const HiddenWeaponClone& entry) {
                     return entry.clone.get() == clone;
                 });
-            if (alreadyOwned != g_hiddenUnsupportedWeaponClones.end()) {
+            if (alreadyOwned != g_hiddenWeaponClones.end()) {
                 continue;
             }
 
-            HiddenUnsupportedWeaponClone entry;
+            HiddenWeaponClone entry;
             entry.clone = object.partClone;
             entry.wasCulled = clone->GetAppCulled();
-            g_hiddenUnsupportedWeaponClones.push_back(std::move(entry));
+            g_hiddenWeaponClones.push_back(std::move(entry));
             clone->SetAppCulled(true);
             ++hidden;
         }
         return hidden;
     }
 
-    void SyncUnsupportedEquippedWeaponVisual(
+    void HideConfiguredWeaponVisual(
         RE::PlayerCharacter* player,
-        std::string_view reason)
+        std::string_view reason,
+        std::string_view mode)
     {
-        if (!player || !g_config.enableHideUnsupportedEquippedWeapons ||
-            !UsesBottomH2HFallback(player)) {
+        if (!player) {
             return;
         }
 
-        // If this creature has no usable 1H/2H attack family and must use the
-        // final H2H compatibility fallback, the weapon is visually unsupported
-        // in BOTH drawn and sheathed states. Keep the item mechanically equipped
-        // but hide whichever BipedAnim clone Skyrim currently owns.
         auto* weapon = GetEquippedWeapon(player);
         if (!weapon) {
             return;
@@ -954,14 +901,12 @@ namespace
         std::size_t hidden = 0;
         hidden += HideWeaponCloneInBiped(player->GetBiped(false), weapon);
         hidden += HideWeaponCloneInBiped(player->GetBiped(true), weapon);
-
         if (hidden > 0) {
             spdlog::info(
-                "Unsupported equipped melee weapon hidden [{}]: form={:08X} family={} state={} clones={}",
+                "Creature weapon hidden [{}]: form={:08X} mode={} clones={}",
                 reason,
                 weapon->GetFormID(),
-                GetNormalWeaponFamily(player) == NormalWeaponFamily::kOneHand ? "1H" : "2H",
-                player->IsWeaponDrawn() ? "drawn" : "sheathed",
+                mode,
                 hidden);
         }
     }
@@ -974,53 +919,31 @@ namespace
             return;
         }
 
-        // A 3D rebuild can replace BipedAnim clones. Drop any ownership of the
-        // previous clone first, then make one authoritative decision against the
-        // player's CURRENT 3D. This also keeps draw/sheath transitions simple.
-        RestoreUnsupportedWeaponVisual(reason);
+        // A 3D rebuild can replace BipedAnim clones. Drop ownership of the
+        // previous clone first, then apply the active race's explicit catalog
+        // policy to Skyrim's current BipedAnim clones.
+        RestoreWeaponVisual(reason);
 
-        // Weapon visibility is a creature-player visual utility. Preserve the
-        // long-standing UCC exception for Werewolf/Vampire Lord/Werebear by
-        // requiring the full UniversalCreature policy.
+        // Weapon visibility remains a creature-player visual utility. Preserve
+        // the long-standing UCC exception for Werewolf/Vampire Lord/Werebear.
         if (g_inputPolicy != CreatureInputPolicy::kUniversalCreature) {
             return;
         }
 
-        // Highest priority: a 1H/2H weapon whose creature has to use the final
-        // H2H fallback has no supported weapon animation. If configured, hide it
-        // in BOTH drawn and sheathed states.
-        if (g_config.enableHideUnsupportedEquippedWeapons &&
-            UsesBottomH2HFallback(player)) {
-            SyncUnsupportedEquippedWeaponVisual(player, reason);
+        const auto policy = UPC::RaceCatalog::GetWeaponVisibility(player->GetRace());
+
+        // Per-race catalog policy is authoritative. No attack-family scan or
+        // runtime accessibility inference participates in weapon visibility.
+        if (policy.hideEquippedWeapon) {
+            HideConfiguredWeaponVisual(player, reason, "equipped");
             return;
         }
 
-        // Supported drawn weapons remain visible.
-        if (player->IsWeaponDrawn()) {
-            return;
-        }
-
-        // Independent cosmetic option for creatures whose skeleton/behavior has
-        // no useful sheathe placement. Some creatures do have valid sheathe nodes,
-        // so this remains user-configurable.
-        if (!g_config.enableHideSheathedWeapons) {
-            return;
-        }
-
-        auto* weapon = GetEquippedWeapon(player);
-        if (!weapon) {
-            return;
-        }
-
-        std::size_t hidden = 0;
-        hidden += HideWeaponCloneInBiped(player->GetBiped(false), weapon);
-        hidden += HideWeaponCloneInBiped(player->GetBiped(true), weapon);
-        if (hidden > 0) {
-            spdlog::info(
-                "Sheathed creature weapon hidden [{}]: form={:08X} clones={}",
-                reason,
-                weapon->GetFormID(),
-                hidden);
+        // A race may keep a weapon visible while drawn but suppress a broken
+        // sheath-node placement while sheathed.
+        if (policy.hideSheathedWeapon &&
+            g_creatureReadyStateKnown && !g_creatureReadyState) {
+            HideConfiguredWeaponVisual(player, reason, "sheathed");
         }
     }
 
@@ -1367,11 +1290,6 @@ namespace
             spdlog::error("No compatible creature normal attack available");
             return false;
         }
-
-        // If this attack reached the bottom armed-melee -> H2H fallback, hide
-        // the weapon clone before the authored unarmed animation begins. This is
-        // a visual-only correction; the weapon remains equipped in gameplay.
-        SyncUnsupportedEquippedWeaponVisual(player, "normal-attack");
 
         if (!ArmAttackData(player, *choice)) {
             return false;
@@ -3219,15 +3137,6 @@ namespace UCCCore
             REL::Module::get().version().string());
 
         return true;
-    }
-
-    void Configure(const Config& config)
-    {
-        g_config = config;
-        spdlog::info(
-            "UCC config: HideUnsupportedEquipped={} HideSheathed={}",
-            g_config.enableHideUnsupportedEquippedWeapons,
-            g_config.enableHideSheathedWeapons);
     }
 
     void HandleSKSEMessage(const SKSE::MessagingInterface::Message* message)

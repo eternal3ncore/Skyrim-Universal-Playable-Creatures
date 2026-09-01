@@ -6,7 +6,7 @@
 
 namespace
 {
-    constexpr REL::Version kPluginVersion{ 0, 2, 12, 0 };
+    constexpr REL::Version kPluginVersion{ 0, 2, 13, 0 };
     constexpr auto kPluginName = "UniversalPlayableCreatures"sv;
     constexpr auto kConfigPath = "Data/SKSE/Plugins/UniversalPlayableCreatures.json"sv;
     constexpr char kRaceMenuName[] = "RaceSex Menu";
@@ -19,8 +19,6 @@ namespace
         bool enableRaceMenuCrashFix{ true };
         bool enableCameraNode{ true };
         bool enableSpellHandRestriction{ true };
-        bool enableHideUnsupportedEquippedWeapons{ true };
-        bool enableHideSheathedWeapons{ true };
 
         float cameraNodeHeightZ{ 121.0f };
         HandPolicy playableHumanoidSpellHand{ HandPolicy::kBoth };
@@ -92,9 +90,6 @@ namespace
         std::ifstream file(std::filesystem::path(std::string(kConfigPath)), std::ios::binary);
         if (!file) {
             logger::warn("Config not found at '{}'; using defaults", kConfigPath);
-            UCCCore::Configure({
-                g_config.enableHideUnsupportedEquippedWeapons,
-                g_config.enableHideSheathedWeapons });
             return;
         }
 
@@ -110,10 +105,6 @@ namespace
                 "EnableThirdPersonCameraNode", g_config.enableCameraNode);
             g_config.enableSpellHandRestriction = json.value(
                 "EnableCreatureSpellHandRestriction", g_config.enableSpellHandRestriction);
-            g_config.enableHideUnsupportedEquippedWeapons = json.value(
-                "EnableHideUnsupportedEquippedWeapons", g_config.enableHideUnsupportedEquippedWeapons);
-            g_config.enableHideSheathedWeapons = json.value(
-                "EnableHideSheathedWeapons", g_config.enableHideSheathedWeapons);
             g_config.cameraNodeHeightZ = json.value(
                 "CameraNodeHeightZ", g_config.cameraNodeHeightZ);
 
@@ -133,18 +124,12 @@ namespace
             g_config = {};
         }
 
-        UCCCore::Configure({
-            g_config.enableHideUnsupportedEquippedWeapons,
-            g_config.enableHideSheathedWeapons });
-
         logger::info(
-            "Config loaded: RaceMenuCrashFix={} CameraNode={} SpellHandRestriction={} HumanoidSpellHand={} HideUnsupportedEquipped={} HideSheathed={}",
+            "Config loaded: RaceMenuCrashFix={} CameraNode={} SpellHandRestriction={} HumanoidSpellHand={}",
             g_config.enableRaceMenuCrashFix,
             g_config.enableCameraNode,
             g_config.enableSpellHandRestriction,
-            PolicyName(g_config.playableHumanoidSpellHand),
-            g_config.enableHideUnsupportedEquippedWeapons,
-            g_config.enableHideSheathedWeapons);
+            PolicyName(g_config.playableHumanoidSpellHand));
     }
 
     namespace RaceMenuFix
