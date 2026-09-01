@@ -9,6 +9,7 @@ namespace UPC::RaceCatalog
         constexpr auto kRaceConfigDir = "Data/SKSE/Plugins/UniversalPlayableCreatures"sv;
 
         std::unordered_map<const RE::TESRace*, HandPolicy> g_spellHands;
+        std::unordered_map<const RE::TESRace*, WeaponVisibilityPolicy> g_weaponVisibility;
         std::unordered_set<const RE::TESRace*> g_enabledRaces;
         std::unordered_set<const RE::TESRace*> g_seenRaces;
         std::size_t g_entryCount = 0;
@@ -71,6 +72,7 @@ namespace UPC::RaceCatalog
             std::size_t fileResolved = 0;
             std::size_t filePlayable = 0;
             std::size_t filePolicies = 0;
+            std::size_t fileWeaponPolicies = 0;
 
             for (const auto& item : *it) {
                 if (!item.is_object()) {
@@ -98,7 +100,7 @@ namespace UPC::RaceCatalog
 
                 if (!g_seenRaces.insert(race).second) {
                     logger::warn(
-                        "Race catalog duplicate [{}]: {}; later row overrides prior availability/hand metadata",
+                        "Race catalog duplicate [{}]: {}; later row overrides prior availability/hand/weapon metadata",
                         path.filename().string(), spec);
                 }
 
@@ -106,6 +108,7 @@ namespace UPC::RaceCatalog
                 // deliberately disable availability or remove a prior hand policy.
                 g_enabledRaces.erase(race);
                 g_spellHands.erase(race);
+                g_weaponVisibility.erase(race);
 
                 const bool playable = item.value("playable", false);
                 if (playable) {
@@ -134,17 +137,36 @@ namespace UPC::RaceCatalog
                         logger::warn("Race catalog [{}] invalid spellHand for {}", path.filename().string(), spec);
                     }
                 }
+
+                WeaponVisibilityPolicy weaponPolicy{};
+                if (const auto hideEquippedIt = item.find("hideEquippedWeapon"); hideEquippedIt != item.end()) {
+                    if (hideEquippedIt->is_boolean()) {
+                        weaponPolicy.hideEquippedWeapon = hideEquippedIt->get<bool>();
+                    } else {
+                        logger::warn("Race catalog [{}] invalid hideEquippedWeapon type for {}; using false", path.filename().string(), spec);
+                    }
+                }
+                if (const auto hideSheathedIt = item.find("hideSheathedWeapon"); hideSheathedIt != item.end()) {
+                    if (hideSheathedIt->is_boolean()) {
+                        weaponPolicy.hideSheathedWeapon = hideSheathedIt->get<bool>();
+                    } else {
+                        logger::warn("Race catalog [{}] invalid hideSheathedWeapon type for {}; using false", path.filename().string(), spec);
+                    }
+                }
+                g_weaponVisibility[race] = weaponPolicy;
+                ++fileWeaponPolicies;
             }
 
             logger::info(
-                "Race catalog [{}]: entries={} resolved={} playableApplied={} spellPolicies={}",
-                path.filename().string(), fileEntries, fileResolved, filePlayable, filePolicies);
+                "Race catalog [{}]: entries={} resolved={} playableApplied={} spellPolicies={} weaponPolicies={}",
+                path.filename().string(), fileEntries, fileResolved, filePlayable, filePolicies, fileWeaponPolicies);
         }
     }
 
     void Load(bool applyPlayableFlags)
     {
         g_spellHands.clear();
+        g_weaponVisibility.clear();
         g_enabledRaces.clear();
         g_seenRaces.clear();
         g_entryCount = 0;
@@ -183,8 +205,8 @@ namespace UPC::RaceCatalog
         g_seenRaces.rehash(0);
 
         logger::info(
-            "Race catalogs loaded: files={} entries={} resolved={} enabled={} spellPolicies={} playableApplication={}",
-            files.size(), g_entryCount, g_resolvedCount, g_enabledRaces.size(), g_spellHands.size(), applyPlayableFlags);
+            "Race catalogs loaded: files={} entries={} resolved={} enabled={} spellPolicies={} weaponPolicies={} playableApplication={}",
+            files.size(), g_entryCount, g_resolvedCount, g_enabledRaces.size(), g_spellHands.size(), g_weaponVisibility.size(), applyPlayableFlags);
     }
 
     bool IsEnabled(const RE::TESRace* race)
@@ -199,6 +221,15 @@ namespace UPC::RaceCatalog
             return it->second;
         }
         return std::nullopt;
+    }
+
+    WeaponVisibilityPolicy GetWeaponVisibility(const RE::TESRace* race)
+    {
+        if (!race) return {};
+        if (const auto it = g_weaponVisibility.find(race); it != g_weaponVisibility.end()) {
+            return it->second;
+        }
+        return {};
     }
 
     std::size_t EntryCount() { return g_entryCount; }
