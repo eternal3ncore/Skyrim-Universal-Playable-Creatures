@@ -1,4 +1,4 @@
-# Universal Playable Creatures
+# Universal Playable Creatures 0.2.26
 
 Universal Playable Creatures (UPC) is an SKSE plugin for Skyrim Special Edition / Anniversary Edition that makes creature races usable by the player and provides runtime support for creature-specific controls that Skyrim's normal player systems do not reliably handle.
 
