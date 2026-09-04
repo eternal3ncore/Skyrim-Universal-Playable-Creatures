@@ -1,116 +1,82 @@
-# Universal Playable Creatures v0.2.13
+# Universal Playable Creatures
 
-Universal Playable Creatures (UPC) is an SKSE plugin for Skyrim Anniversary Edition that enables supported creature races to be used by the player and provides runtime controls and compatibility support for creature-specific behavior.
+Universal Playable Creatures (UPC) is an SKSE plugin for Skyrim Special Edition / Anniversary Edition that makes creature races usable by the player and provides runtime support for creature-specific controls that Skyrim's normal player systems do not reliably handle.
 
-## Features
+## Feature overview
 
-### Universal creature controls
+- Data-driven playable creature race catalogs for Skyrim and converted creature sets.
+- Universal creature melee and power-attack handling using each race's own `BGSAttackData`.
+- Attack-family profiles that classify compatible attack events without hardcoding individual races into the DLL.
+- Creature spell-hand policy (`Left`, `Right`, or `Both`) configurable per race.
+- Creature blocking, spell/shout fallback, crafting interaction, and traversal support where the native player route is unavailable.
+- Third-person creature camera-node support.
+- Configurable equipped/sheathed weapon visibility for creature races.
+- RaceMenu safeguards for creature-player use.
+- Event-driven runtime design; the normal control paths do not rely on background polling loops.
 
-UPC provides runtime control support for supported creature races, including:
+## Bug fixes and workarounds
 
-- Creature-compatible normal and power attacks.
-- Directional power attacks through the Sneak control where supported.
-- Blocking support for compatible creature behavior graphs.
-- Native-first creature spellcasting with animation fallback where required.
-- Shout and power animation support with HitFrame synchronization where supported.
-- Creature crafting and furniture interception.
-- Per-race weapon visibility handling.
-- Preservation of the player's ready state when hand equipment changes.
+Skyrim's player controls assume humanoid behavior graphs. Many native and converted creature races either do not expose the expected player action branches or expose attacks under creature-specific animation events. UPC can enable a combat workaround per race that discovers the active race's own attack data and dispatches compatible creature attack events while preserving native behavior where possible.
 
-### Race catalogs and playability
+Attack-family JSON files provide the event-family rules used by that workaround. This keeps converter/game-specific naming outside the core DLL and allows classification fixes to be made without hardcoding individual creature races.
 
-Creature support is configured through separate JSON catalogs for Skyrim/DLC, converted Oblivion creatures, and Morroblivion creatures.
+UPC also contains runtime workarounds for creature RaceMenu use, third-person camera placement, spell-hand restrictions, and weapon presentation where Skyrim's humanoid assumptions produce incorrect behavior.
 
-Races are disabled for player selection by default. To enable a race, open the appropriate catalog in:
+## Race JSON catalogs
 
-`Data\SKSE\Plugins\UniversalPlayableCreatures\`
+Race catalogs are located in:
 
-and change its `playable` value from `false` to `true`:
-
-```json
-{
-  "name": "Clannfear",
-  "editorID": "TES4SummonClannfearRace",
-  "race": "Oblivion.esm|00714D7C",
-  "playable": true,
-  "spellHand": "Right",
-  "hideEquippedWeapon": false,
-  "hideSheathedWeapon": false
-}
+```text
+Data/SKSE/Plugins/UniversalPlayableCreatures/
 ```
 
-Save the file and restart Skyrim.
+Examples include `Skyrim.json`, `Oblivion.json`, `Morroblivion.json`, and `FalloutNV.json` when that converted set is installed.
 
-The included catalogs are:
+Each race entry defines its UPC policy. Important fields include:
 
-- `Skyrim.json` — Skyrim and DLC creature races.
-- `Oblivion.json` — converted Oblivion creature races.
-- `Morroblivion.json` — converted Morroblivion creature races.
+- `playable` — whether UPC applies Skyrim's playable flag to the race at startup.
+- `spellHand` — `Left`, `Right`, or `Both`. Use `Both` when no restriction is known to be necessary.
+- `useCombatWorkaround` — enables UPC's creature attack/control workaround for that race.
+- `attackFamily` — names the attack-family profile used to classify the race's attack events.
+- `hideEquippedWeapon` / `hideSheathedWeapon` — controls creature weapon-mesh visibility.
 
-### Creature spell-hand policy
+Keep fields explicit rather than relying on omitted values. Changes to the JSON catalogs require a full Skyrim restart because UPC loads its configuration at startup.
 
-Each catalog entry can define a `spellHand` policy independently of whether the race is playable. UPC uses this to prevent unsupported spell-hand configurations while preserving known native creature behavior.
+## Attack-family JSON
 
-### Per-race weapon visibility
+Attack-family profiles are located in:
 
-Weapon presentation is configured directly in each race entry rather than inferred from attack capability:
+```text
+Data/SKSE/Plugins/UniversalPlayableCreatures/AttackFamilies/
+```
 
-- `hideEquippedWeapon: false`, `hideSheathedWeapon: false` — weapon remains visible normally.
-- `hideEquippedWeapon: false`, `hideSheathedWeapon: true` — weapon is visible while drawn and hidden while sheathed.
-- `hideEquippedWeapon: true` — weapon is hidden regardless of ready state.
+Files use the `.attackfamilies.json` suffix. A race's `attackFamily` value must exactly match a profile `name` defined in one of these files.
 
-If either visibility field is absent or invalid, it defaults to `false`.
+Profiles describe converter/game-specific attack naming, including weapon-family markers, swimming events, power attacks, bashes, block/counter attacks, exclusions, and whether matched converted events need redispatch. UPC still uses the active race's own `BGSAttackData`; the family profile tells UPC how those discovered events should be interpreted.
 
-### Equipment-change ready-state preservation
+Markers should be specific enough to identify the intended event family. For converted TES4-style events, full family prefixes are preferable to short ambiguous substrings when exclusions could overlap another valid attack name.
 
-UPC listens for player equipment activity and compares the player's actual equipped left- and right-hand objects after the change settles. If the hands changed while a supported creature was ready, UPC preserves that ready state through the equipment transition.
+## Installation
 
-This system is event-driven and does not use continuous polling.
+Install the contents of the packaged `Data` folder into Skyrim's `Data` directory so the layout is:
 
-## Bug fixes
+```text
+Data/SKSE/Plugins/UniversalPlayableCreatures.dll
+Data/SKSE/Plugins/UniversalPlayableCreatures.json
+Data/SKSE/Plugins/UniversalPlayableCreatures/*.json
+Data/SKSE/Plugins/UniversalPlayableCreatures/AttackFamilies/*.attackfamilies.json
+```
 
-### Creature RaceMenu crash protection
+SKSE64 is required. Install the appropriate Address Library for the Skyrim runtime in use.
 
-UPC protects supported creature transformations from RaceMenu paths that are unsafe for creature races.
+If an older standalone `UniversalCreatureControls.dll` is installed, remove or disable it before using the merged UPC plugin so the same creature controls are not registered twice.
 
-### Weapon visibility corrections
+The runtime log is written to:
 
-UPC can hide inappropriate equipped weapon meshes and broken sheathed weapon placements on a per-race basis. Weapon visibility is synchronized with equipment and ready-state events rather than determined from attack-family scanning.
-
-## Compatibility workarounds
-
-### Third-person camera node
-
-UPC can provide runtime third-person camera-node support for creature skeletons that do not contain the normal player camera node.
-
-### Unsupported spell-hand behavior
-
-Converted creature behavior graphs do not necessarily support both humanoid spell hands. UPC applies the configured race-specific hand policy rather than assuming every creature can use both hands.
-
-### Converted-creature equipment readiness
-
-Skyrim's normal `IsWeaponDrawn()` state is not reliable for every converted creature. UPC therefore derives creature ready state from SKSE action events for systems that need to distinguish drawn and sheathed states.
-
-### Spellcasting fallback
-
-When a creature behavior graph does not take native ownership of an equipped spell cast, UPC can fall back to a compatible creature animation and synchronize the spell effect to its authored HitFrame where possible.
-
-## Configuration
-
-The main configuration file is:
-
-`Data\SKSE\Plugins\UniversalPlayableCreatures.json`
-
-Race catalogs are stored in:
-
-`Data\SKSE\Plugins\UniversalPlayableCreatures\`
-
-The main configuration controls global UPC behavior. Race-specific playability, spell-hand policy, and weapon visibility are controlled by each race's catalog entry.
-
-## Installation layout
-
-UPC runtime files are installed under Skyrim's `Data` directory. The SKSE plugin DLL and primary configuration belong in `Data\SKSE\Plugins`, with race catalogs in the `UniversalPlayableCreatures` subdirectory.
+```text
+Documents/My Games/Skyrim Special Edition/SKSE/UniversalPlayableCreatures.log
+```
 
 ## License
 
-See `LICENSE` for licensing information.
+Source available — All Rights Reserved. See `LICENSE` for permitted uses.

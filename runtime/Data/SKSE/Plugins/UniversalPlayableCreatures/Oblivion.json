@@ -1,0 +1,1571 @@
+{
+  "schemaVersion": 2,
+  "format": "UniversalPlayableCreaturesRaceCatalog",
+  "source": "Oblivion converted RACE catalog with per-race spell handedness",
+  "sourcePlugins": [
+    "Oblivion.esm"
+  ],
+  "races": [
+    {
+      "name": "Clannfear",
+      "editorID": "TES4SummonClannfearRace",
+      "race": "Oblivion.esm|00714D7C",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Daedroth",
+      "editorID": "TES4SummonDaedrothRace",
+      "race": "Oblivion.esm|00D146F8",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Flame Atronach",
+      "editorID": "TES4SummonAtronachFlameRace",
+      "race": "Oblivion.esm|0069A5AF",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Mangled Flesh Atronach",
+      "editorID": "TES4SESummonAtronachFlesh1Race",
+      "race": "Oblivion.esm|009710B3",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Mended Flesh Atronach",
+      "editorID": "TES4SECreatureAtronachFlesh5BossRace",
+      "race": "Oblivion.esm|004B6D27",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Sewn Flesh Atronach",
+      "editorID": "TES4SESummonAtronachFlesh4Race",
+      "race": "Oblivion.esm|00786CAF",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Frost Atronach",
+      "editorID": "TES4SummonAtronachFrostRace",
+      "race": "Oblivion.esm|00DF97DC",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Gluttonous Hunger",
+      "editorID": "TES4SESummonHunger3Race",
+      "race": "Oblivion.esm|00D42A9C",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Hunger",
+      "editorID": "TES4SESummonHunger2Race",
+      "race": "Oblivion.esm|00D7D1D4",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Ravenous Hunger",
+      "editorID": "TES4SE09Hunger01Race",
+      "race": "Oblivion.esm|00455076",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Starved Hunger",
+      "editorID": "TES4SECreatureHunger1Race",
+      "race": "Oblivion.esm|00759E51",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreatureHunger",
+      "editorID": "TES4TestCreaturesHungerDarkLevel2Race",
+      "race": "Oblivion.esm|00D473F1",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreatureHunger",
+      "editorID": "TES4TestCreaturesHungerDarkLevel3Race",
+      "race": "Oblivion.esm|002175FC",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreatureHunger",
+      "editorID": "TES4TestCreaturesHungerLightLevel3Race",
+      "race": "Oblivion.esm|0099A4F1",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreatureHunger",
+      "editorID": "TES4TestCreaturesHungerLightRace",
+      "race": "Oblivion.esm|00833743",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreatureHunger",
+      "editorID": "TES4TestCreaturesHungerSkeletonRace",
+      "race": "Oblivion.esm|00243760",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Jyggalag",
+      "editorID": "TES4SECreatureJyggalag8Race",
+      "race": "Oblivion.esm|002CF0B5",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Mehrunes Dagon",
+      "editorID": "TES4TestMehrunesDagonSkeletonRace",
+      "race": "Oblivion.esm|00BAAE1E",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Everscamp",
+      "editorID": "TES4MS43StaffScampRace",
+      "race": "Oblivion.esm|00BA5016",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Scamp",
+      "editorID": "TES4MQ16PalaceScampRace",
+      "race": "Oblivion.esm|003DC79E",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Spider Daedra",
+      "editorID": "TES4CreatureSpiderDaedraNOSUMMONRace",
+      "race": "Oblivion.esm|0079E4CD",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Storm Atronach — The Sunken One",
+      "editorID": "TES4SQ07CreatureStormAtronach04Race",
+      "race": "Oblivion.esm|00A7C53F",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Xivilai",
+      "editorID": "TES4CreatureXivilaiWeaponNOSUMMONRace",
+      "race": "Oblivion.esm|00DEF379",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Baliwog",
+      "editorID": "TES4SE09Baliwog02Race",
+      "race": "Oblivion.esm|0066DF96",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Young Baliwog",
+      "editorID": "TES4SECreatureBaliwog1DeadRace",
+      "race": "Oblivion.esm|00B57D08",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Elytra",
+      "editorID": "TES4TestCreatureElytraRace",
+      "race": "Oblivion.esm|008ECBED",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Elytra",
+      "editorID": "TES4TestCreatureElytralevel2Race",
+      "race": "Oblivion.esm|0029B0B0",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Elytra",
+      "editorID": "TES4TestCreatureElytralevel3Race",
+      "race": "Oblivion.esm|0027CCBC",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Elytra Hatchling",
+      "editorID": "TES4XPKnotCustomSECreatureElytraMania1Race",
+      "race": "Oblivion.esm|00496E6B",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Elytra Matron",
+      "editorID": "TES4XPKnotCustomSECreatureElytraMania5Race",
+      "race": "Oblivion.esm|003ACAB4",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Elytra Soldier",
+      "editorID": "TES4XPKnotCustomSECreatureElytraMania3Race",
+      "race": "Oblivion.esm|0093A784",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "GateKeeper",
+      "editorID": "TES4SE09GatekeeperHelmAxeRace",
+      "race": "Oblivion.esm|003BE8B3",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "GateKeeper",
+      "editorID": "TES4TestCreaturesGateKeeperBareRace",
+      "race": "Oblivion.esm|005F1E5A",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "GateKeeper",
+      "editorID": "TES4TestCreaturesGateKeeperFistRace",
+      "race": "Oblivion.esm|00426EEB",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Gatekeeper",
+      "editorID": "TES4SE02Gatekeeper6Race",
+      "race": "Oblivion.esm|00C17D9E",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Gatekeeper",
+      "editorID": "TES4SE09GatekeeperHeadAxeRace",
+      "race": "Oblivion.esm|004A32CF",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Gatekeeper",
+      "editorID": "TES4SE09GatekeeperHeadMaceRace",
+      "race": "Oblivion.esm|00460612",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Gatekeeper",
+      "editorID": "TES4SE09GatekeeperHelmMaceRace",
+      "race": "Oblivion.esm|002FD1F1",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Gatekeeper",
+      "editorID": "TES4SE09GatekeeperHelmSwordRace",
+      "race": "Oblivion.esm|00BBB350",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Gnarl Cultivator",
+      "editorID": "TES4SE12GnarlFollowerDementiaTemplateRace",
+      "race": "Oblivion.esm|001C8B1F",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Gnarl Cultivator",
+      "editorID": "TES4SE12GnarlFollowerManiaTemplateRace",
+      "race": "Oblivion.esm|00B0D41D",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Mania Gnarl",
+      "editorID": "TES4SE03CreatureGnarlDementia1Race",
+      "race": "Oblivion.esm|00354E65",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreatureGnarl",
+      "editorID": "TES4TestCreaturesGnarlManiaLevel1Race",
+      "race": "Oblivion.esm|00363D6F",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Dead Grummite",
+      "editorID": "TES4SECreatureGrummiteDeadManiaRace",
+      "race": "Oblivion.esm|00CD058A",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Beater",
+      "editorID": "TES4SECreatureGrummiteArcherDementia2Race",
+      "race": "Oblivion.esm|002A8463",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Beater",
+      "editorID": "TES4SECreatureGrummiteArcherMania2Race",
+      "race": "Oblivion.esm|008E5D10",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Beater",
+      "editorID": "TES4SECreatureGrummiteMania2Race",
+      "race": "Oblivion.esm|0045F5C7",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Beater",
+      "editorID": "TES4XPKnotCustomSECreatureGrummiteDementia2Race",
+      "race": "Oblivion.esm|00582253",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Deathdealer",
+      "editorID": "TES4SECreatureGrummiteArcherMania5Race",
+      "race": "Oblivion.esm|002129FE",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Deathdealer",
+      "editorID": "TES4XPKnotCustomSECreatureGrummiteDementia5Race",
+      "race": "Oblivion.esm|00AD60A0",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Lookout",
+      "editorID": "TES4SEXedGrumPatrol02Race",
+      "race": "Oblivion.esm|00E1A69F",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Magus Beater",
+      "editorID": "TES4SECreatureGrummiteMagusMania2Race",
+      "race": "Oblivion.esm|00E597CD",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Magus Beater",
+      "editorID": "TES4XPKnotCustomSECreatureGrummiteMagusDementia2Race",
+      "race": "Oblivion.esm|008C1ADA",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Magus Deathdealer",
+      "editorID": "TES4SECreatureGrummiteMagusMania5Race",
+      "race": "Oblivion.esm|00D91BFA",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Magus Deathdealer",
+      "editorID": "TES4XPKnotCustomSECreatureGrummiteMagusDementia5Race",
+      "race": "Oblivion.esm|00AE2192",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Magus Painbringer",
+      "editorID": "TES4XPKnotCustomSECreatureGrummiteMagusDementia4Race",
+      "race": "Oblivion.esm|00EE4CD0",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Magus Torturer",
+      "editorID": "TES4XPKnotCustomSECreatureGrummiteMagusDementia3Race",
+      "race": "Oblivion.esm|00568746",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Magus Whelp",
+      "editorID": "TES4SECreatureGrummiteMagusDementia1Level1Race",
+      "race": "Oblivion.esm|00ECD293",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Magus Whelp",
+      "editorID": "TES4SECreatureGrummiteMagusMania1Level1Race",
+      "race": "Oblivion.esm|00E6BA7F",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Painbringer",
+      "editorID": "TES4SECreatureGrummiteArcherDementia4Race",
+      "race": "Oblivion.esm|00D0E2A0",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Painbringer",
+      "editorID": "TES4SECreatureGrummiteArcherMania4Race",
+      "race": "Oblivion.esm|0047C6FA",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Painbringer",
+      "editorID": "TES4SECreatureGrummiteMania4Race",
+      "race": "Oblivion.esm|0027F06B",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Painbringer",
+      "editorID": "TES4XPKnotCustomSECreatureGrummiteDementia4Race",
+      "race": "Oblivion.esm|00A6DFEE",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Torturer",
+      "editorID": "TES4SECreatureGrummiteArcherDementia3Race",
+      "race": "Oblivion.esm|00B8913C",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Torturer",
+      "editorID": "TES4SECreatureGrummiteArcherMania3Race",
+      "race": "Oblivion.esm|00BA6978",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Torturer",
+      "editorID": "TES4SECreatureGrummiteMania3Race",
+      "race": "Oblivion.esm|0075D4B9",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Torturer",
+      "editorID": "TES4XPKnotCustomSECreatureGrummiteDementia3Race",
+      "race": "Oblivion.esm|0050FEFA",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Whelp",
+      "editorID": "TES4SECreatureGrummiteDementia1Level1Race",
+      "race": "Oblivion.esm|001901AC",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Grummite Whelp",
+      "editorID": "TES4SECreatureGrummiteMania1Level1Race",
+      "race": "Oblivion.esm|009EC578",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreaturesGrummiteD",
+      "editorID": "TES4TestCreaturesGrummiteDRace",
+      "race": "Oblivion.esm|008F93B1",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreaturesGrummiteDFullAxeShield",
+      "editorID": "TES4TestCreaturesGrummiteDFullAxeShieldRace",
+      "race": "Oblivion.esm|008E38B2",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreaturesGrummiteDFullStaff",
+      "editorID": "TES4TestCreaturesGrummiteDFullStaffRace",
+      "race": "Oblivion.esm|0045EF80",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreaturesGrummiteDance2",
+      "editorID": "TES4TestCreaturesGrummiteDance2Race",
+      "race": "Oblivion.esm|00C8D152",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreaturesGrummiteDance3",
+      "editorID": "TES4TestCreaturesGrummiteDance3Race",
+      "race": "Oblivion.esm|00794270",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreaturesGrummiteDance5",
+      "editorID": "TES4TestCreaturesGrummiteDance5Race",
+      "race": "Oblivion.esm|00B71A2C",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreaturesGrummiteDance6",
+      "editorID": "TES4TestCreaturesGrummiteDance6Race",
+      "race": "Oblivion.esm|0099C02C",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreaturesGrummiteM",
+      "editorID": "TES4TestCreaturesGrummiteMRace",
+      "race": "Oblivion.esm|00496C02",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "TestCreaturesGrummiteMFullBow",
+      "editorID": "TES4TestCreaturesGrummiteMFullBowRace",
+      "race": "Oblivion.esm|0072D8AB",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Scalon / Murk Dweller — Diseased Scalon",
+      "editorID": "TES4SEDireWarrenScalonManiaDead01Race",
+      "race": "Oblivion.esm|00D2235D",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Scalon / Murk Dweller — Hulking Scalon",
+      "editorID": "TES4SE09Scalon01Race",
+      "race": "Oblivion.esm|0027863E",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Scalon / Murk Dweller — Hulking Scalon",
+      "editorID": "TES4SECreatureScalonMania3Race",
+      "race": "Oblivion.esm|005265FE",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Scalon / Murk Dweller — Lurking Scalon",
+      "editorID": "TES4SEKnotboneScalonPatrol04Race",
+      "race": "Oblivion.esm|00C1A1DE",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Decrepit Shambles",
+      "editorID": "TES4SE09Shambles03Race",
+      "race": "Oblivion.esm|00D377BD",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Decrepit Shambles",
+      "editorID": "TES4SECreatureShambles1aRace",
+      "race": "Oblivion.esm|00CC567B",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Replete Shambles",
+      "editorID": "TES4SESummonShambles3Race",
+      "race": "Oblivion.esm|002B1CBF",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Shambles",
+      "editorID": "TES4SE09Shambles02Race",
+      "race": "Oblivion.esm|00379A0D",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Shambles",
+      "editorID": "TES4SECreatureShambles2aRace",
+      "race": "Oblivion.esm|00C80091",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Shambles",
+      "editorID": "TES4TestCreaturesShamblesNoArmsRace",
+      "race": "Oblivion.esm|0058F497",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Shambles",
+      "editorID": "TES4TestCreaturesShamblesNoHeadArmsRace",
+      "race": "Oblivion.esm|00CAC6A0",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Bitterfish Goblin Berserker",
+      "editorID": "TES4MQ12Goblin3BerserkerRace",
+      "race": "Oblivion.esm|00BDBE9D",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Bitterfish Goblin Shaman",
+      "editorID": "TES4MQ12Goblin4ShamanRace",
+      "race": "Oblivion.esm|0032C334",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Bitterfish Goblin Skirmisher",
+      "editorID": "TES4MQ12Goblin2SkirmisherRace",
+      "race": "Oblivion.esm|002AE591",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin — Bloody Hand Chef",
+      "editorID": "TES4GoblinCookARace",
+      "race": "Oblivion.esm|008FCDCF",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Bloody Hand Goblin",
+      "editorID": "TES4GoblinTribeGuardARace",
+      "race": "Oblivion.esm|008EEE49",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Bloody Hand Goblin Berserker",
+      "editorID": "TES4GoblinTribeSoldierARace",
+      "race": "Oblivion.esm|00A7D6AE",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Bloody Hand Goblin Shaman",
+      "editorID": "TES4GoblinTribeShamanARace",
+      "race": "Oblivion.esm|0069A7FA",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Bloody Hand Goblin Skirmisher",
+      "editorID": "TES4GoblinTribePatrolARace",
+      "race": "Oblivion.esm|0077010E",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Bloody Hand Goblin War Chief",
+      "editorID": "TES4GoblinTribeLeaderARace",
+      "race": "Oblivion.esm|00EF439E",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin — Bloody Hand Rat Farmer",
+      "editorID": "TES4GoblinTribeFarmerARace",
+      "race": "Oblivion.esm|0088162E",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Dust Eater Goblin",
+      "editorID": "TES4GoblinTribeGuardERace",
+      "race": "Oblivion.esm|007CD2BD",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Dust Eater Goblin Berserker",
+      "editorID": "TES4GoblinTribeSoldierERace",
+      "race": "Oblivion.esm|001BD2ED",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Dust Eater Goblin Shaman",
+      "editorID": "TES4GoblinTribeShamanERace",
+      "race": "Oblivion.esm|009B37F1",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Dust Eater Goblin Skirmisher",
+      "editorID": "TES4GoblinTribePatrolERace",
+      "race": "Oblivion.esm|008A3F6A",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Dust Eater Goblin War Chief",
+      "editorID": "TES4GoblinTribeLeaderERace",
+      "race": "Oblivion.esm|006BE821",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin",
+      "editorID": "TES4CGGoblinLogRunner02Race",
+      "race": "Oblivion.esm|00C3BB4D",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin",
+      "editorID": "TES4MQ12GoblinLazyTEMPLATERace",
+      "race": "Oblivion.esm|002E59E5",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin",
+      "editorID": "TES4TestTrapGoblin01Race",
+      "race": "Oblivion.esm|00E5E1B1",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin",
+      "editorID": "TES4XXXCreatureGoblinRace",
+      "race": "Oblivion.esm|0077799B",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Berserker",
+      "editorID": "TES4CGGoblinBerserkerPATROL01Race",
+      "race": "Oblivion.esm|00567447",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Berserker",
+      "editorID": "TES4CGGoblinBerserkerWANDERRace",
+      "race": "Oblivion.esm|00A88753",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Berserker",
+      "editorID": "TES4TestCreatureGoblinBerserker01Race",
+      "race": "Oblivion.esm|00A5B8F8",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Berserker",
+      "editorID": "TES4TestCreatureGoblinBerserker02Race",
+      "race": "Oblivion.esm|0087E83C",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Berserker",
+      "editorID": "TES4TestCreatureGoblinBerserkerRace",
+      "race": "Oblivion.esm|0036ECEB",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Chef",
+      "editorID": "TES4GoblinCookRace",
+      "race": "Oblivion.esm|00B679CB",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Netherboss",
+      "editorID": "TES4SQ03CreatureGoblin2SkirmisherRace",
+      "race": "Oblivion.esm|00361215",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Rat Farmer",
+      "editorID": "TES4GoblinRatFarmerRace",
+      "race": "Oblivion.esm|006A11D5",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Shaman",
+      "editorID": "TES4CGGoblinThiefShamanRace",
+      "race": "Oblivion.esm|0064D2FE",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Shaman",
+      "editorID": "TES4ICArenaGoblinShamanRace",
+      "race": "Oblivion.esm|00DD6162",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Shaman",
+      "editorID": "TES4TestCreatureGoblinShamanWithStaffRace",
+      "race": "Oblivion.esm|009270F0",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Skirmisher",
+      "editorID": "TES4ICArenaGoblinSkirmisherRace",
+      "race": "Oblivion.esm|0062A3AD",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Skirmisher",
+      "editorID": "TES4TestCreatureGoblinSkirmisherhornedRace",
+      "race": "Oblivion.esm|00DB95B2",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin Warlord",
+      "editorID": "TES4CreatureGoblin5WarlordArcherRace",
+      "race": "Oblivion.esm|00E8ADCD",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Rock Biter Goblin",
+      "editorID": "TES4GoblinTribeGuardBRace",
+      "race": "Oblivion.esm|00DA1FD9",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Rock Biter Goblin Berserker",
+      "editorID": "TES4GoblinTribeSoldierBRace",
+      "race": "Oblivion.esm|0030BF32",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Rock Biter Goblin Shaman",
+      "editorID": "TES4GoblinTribeShamanBRace",
+      "race": "Oblivion.esm|0032F021",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Rock Biter Goblin Skirmisher",
+      "editorID": "TES4GoblinTribePatrolBRace",
+      "race": "Oblivion.esm|005CF1BD",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Rock Biter Goblin War Chief",
+      "editorID": "TES4GoblinTribeLeaderBRace",
+      "race": "Oblivion.esm|006089CD",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Savage Goblin",
+      "editorID": "TES4FGC06GoblinBossRace",
+      "race": "Oblivion.esm|009D2812",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Goblin — Sharp Tooth Chef",
+      "editorID": "TES4GoblinCookGRace",
+      "race": "Oblivion.esm|0053368F",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Sharp Tooth Goblin",
+      "editorID": "TES4GoblinTribeGuardGRace",
+      "race": "Oblivion.esm|00A39DCB",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Sharp Tooth Goblin Berserker",
+      "editorID": "TES4GoblinTribeSoldierGRace",
+      "race": "Oblivion.esm|00775A68",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Sharp Tooth Goblin Shaman",
+      "editorID": "TES4GoblinTribeShamanGRace",
+      "race": "Oblivion.esm|00A8B86B",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Sharp Tooth Goblin Skirmisher",
+      "editorID": "TES4GoblinTribePatrolGRace",
+      "race": "Oblivion.esm|006B5EE8",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Sharp Tooth Goblin War Chief",
+      "editorID": "TES4GoblinTribeLeaderGRace",
+      "race": "Oblivion.esm|00E330B0",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Skull Breaker Goblin",
+      "editorID": "TES4GoblinTribeGuardCRace",
+      "race": "Oblivion.esm|0051BC77",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Skull Breaker Goblin Berserker",
+      "editorID": "TES4GoblinTribeSoldierCRace",
+      "race": "Oblivion.esm|007434A2",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Skull Breaker Goblin Shaman",
+      "editorID": "TES4GoblinTribeShamanCRace",
+      "race": "Oblivion.esm|003AB456",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Skull Breaker Goblin Skirmisher",
+      "editorID": "TES4GoblinTribePatrolCRace",
+      "race": "Oblivion.esm|00D128D1",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Skull Breaker Goblin War Chief",
+      "editorID": "TES4GoblinTribeLeaderCRace",
+      "race": "Oblivion.esm|00979C94",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Three Feather Goblin",
+      "editorID": "TES4GoblinTribeGuardFRace",
+      "race": "Oblivion.esm|006BE350",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Three Feather Goblin Berserker",
+      "editorID": "TES4GoblinTribeSoldierFRace",
+      "race": "Oblivion.esm|0056C71E",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Three Feather Goblin Skirmisher",
+      "editorID": "TES4GoblinTribePatrolFRace",
+      "race": "Oblivion.esm|00852655",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Three Feather Goblin War Chief",
+      "editorID": "TES4GoblinTribeLeaderFRace",
+      "race": "Oblivion.esm|00B9B0CA",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Three Feathers Goblin Shaman",
+      "editorID": "TES4GoblinTribeShamanFRace",
+      "race": "Oblivion.esm|00CB7537",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "White Skin Goblin",
+      "editorID": "TES4GoblinTribeGuardDRace",
+      "race": "Oblivion.esm|00ECC691",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "White Skin Goblin Berserker",
+      "editorID": "TES4GoblinTribeSoldierDRace",
+      "race": "Oblivion.esm|00DF5CEA",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "White Skin Goblin Skirmisher",
+      "editorID": "TES4GoblinTribePatrolDRace",
+      "race": "Oblivion.esm|00BE8FD5",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "White Skin Goblin War Chief",
+      "editorID": "TES4GoblinTribeLeaderDRace",
+      "race": "Oblivion.esm|007B423C",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Ghost",
+      "editorID": "TES4SE05GhostRace",
+      "race": "Oblivion.esm|00B7FAFF",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Lich — Erandur-Vangaril",
+      "editorID": "TES4LichErandurVangarilRace",
+      "race": "Oblivion.esm|00824E96",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Skeleton — Dark Guardian",
+      "editorID": "TES4DarkGuardianSanctuaryRace",
+      "race": "Oblivion.esm|00B1F255",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Skeleton — Participant",
+      "editorID": "TES4MochomnachDeadCombatant03Race",
+      "race": "Oblivion.esm|00E85D60",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Skeleton",
+      "editorID": "TES4EmilDBskeletonRace",
+      "race": "Oblivion.esm|008585F1",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Skeleton — Undead Blade",
+      "editorID": "TES4MQ09BladeSkeleton03Race",
+      "race": "Oblivion.esm|001E1189",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Wraith — Llathasa's Spirit",
+      "editorID": "TES4TG03LlathasaWraith1Race",
+      "race": "Oblivion.esm|002292FE",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Wraith — Llathasa's Spirit",
+      "editorID": "TES4TG03LlathasaWraith2GloomRace",
+      "race": "Oblivion.esm|00715066",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Zombie — Decomposed Corpse",
+      "editorID": "TES4SEDeadZombieCorpseRace",
+      "race": "Oblivion.esm|006CD714",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Deranged Zombie",
+      "editorID": "TES4MG01ZombieHeadless14Race",
+      "race": "Oblivion.esm|004F6FB0",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Deranged Zombie",
+      "editorID": "TES4MG01ZombieHeadless8Race",
+      "race": "Oblivion.esm|009D53B7",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Dread Zombie",
+      "editorID": "TES4CreatureZombieDread3Race",
+      "race": "Oblivion.esm|005BD82C",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Zombie — Failed Experiment",
+      "editorID": "TES4SE09DeadFailedExperiment03Race",
+      "race": "Oblivion.esm|008C1D71",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Motierre Zombie",
+      "editorID": "TES4Dark05Zombie1Race",
+      "race": "Oblivion.esm|005212FC",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Zombie — Rotten Corpse",
+      "editorID": "TES4XPEbroccaWifeRace",
+      "race": "Oblivion.esm|00E37754",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Zombie — Uncle Leo",
+      "editorID": "TES4SEUncleLeoRace",
+      "race": "Oblivion.esm|002BBD14",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Zombie",
+      "editorID": "TES4MG14ZombieTemplateRace",
+      "race": "Oblivion.esm|00CA240D",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Zombie Guardian",
+      "editorID": "TES4MQ12KingsZombie01Race",
+      "race": "Oblivion.esm|005B94F7",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Zombie Guardian",
+      "editorID": "TES4MQ12KingsZombie02Race",
+      "race": "Oblivion.esm|00C72E15",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Zombie Guardian",
+      "editorID": "TES4MQ12KingsZombie03Race",
+      "race": "Oblivion.esm|00E47072",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "ZombieCombatTest",
+      "editorID": "TES4TestCombatZombie02Race",
+      "race": "Oblivion.esm|00AB0DAE",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "ZombieMixnMatch01",
+      "editorID": "TES4ARTESTZombie01Race",
+      "race": "Oblivion.esm|00EA402E",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "ZombieMixnMatch02",
+      "editorID": "TES4TestZombie02Race",
+      "race": "Oblivion.esm|00CAC65E",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "ZombieMixnMatch03",
+      "editorID": "TES4TestZombie03Race",
+      "race": "Oblivion.esm|00BBF65F",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "ZombieMixnMatch03",
+      "editorID": "TES4TestZombieGrantRace",
+      "race": "Oblivion.esm|00E2E664",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "ZombieMixnMatch04",
+      "editorID": "TES4TestZombie04Race",
+      "race": "Oblivion.esm|003503B6",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "ZombieMixnMatch05",
+      "editorID": "TES4TestZombie05Race",
+      "race": "Oblivion.esm|006B30B8",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "ZombieMixnMatch06",
+      "editorID": "TES4TestZombie06Race",
+      "race": "Oblivion.esm|009AC8E5",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Imp — Sparky",
+      "editorID": "TES4AnvilMGPetImpRace",
+      "race": "Oblivion.esm|00DADD63",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Land Dreugh",
+      "editorID": "TES4ICArenaLandDreughRace",
+      "race": "Oblivion.esm|00613682",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Land Dreugh — LandDreugh",
+      "editorID": "TES4TestLandDreughRace",
+      "race": "Oblivion.esm|008E4D1E",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Minotaur",
+      "editorID": "TES4CreatureMinotaur1WeaponRace",
+      "race": "Oblivion.esm|0054116D",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Minotaur",
+      "editorID": "TES4CreatureMinotaur2WeaponRace",
+      "race": "Oblivion.esm|00963FF1",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Minotaur",
+      "editorID": "TES4CreatureMinotaur4WeaponRace",
+      "race": "Oblivion.esm|003A66B7",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Minotaur",
+      "editorID": "TES4TestKurtMinotaurRace",
+      "race": "Oblivion.esm|00E3CA13",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Minotaur Lord",
+      "editorID": "TES4ICArenaMinotaurLordRace",
+      "race": "Oblivion.esm|0078CDC0",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Minotaur of the Grove",
+      "editorID": "TES4DAHircineMinotaurLordRace",
+      "race": "Oblivion.esm|005AFB2A",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Minotaur of the Grove",
+      "editorID": "TES4DAHircineMinotaurStandardRace",
+      "race": "Oblivion.esm|00B94185",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "MinotaurB",
+      "editorID": "TES4TestCreatureMinotaurBRace",
+      "race": "Oblivion.esm|00E624E0",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Redguard Valley Ogre Caveboss",
+      "editorID": "TES4MS16CreatureRGVOgre04CBossRace",
+      "race": "Oblivion.esm|00D9C817",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Redguard Valley Ogre Chieftan",
+      "editorID": "TES4MS16BossOgreRace",
+      "race": "Oblivion.esm|001C42F9",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Spriggan — Gnarl Sapling",
+      "editorID": "TES4TestJoelGnarlWeaklingRace",
+      "race": "Oblivion.esm|00CC6791",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Painted Troll",
+      "editorID": "TES4MS14PaintedTrollRace",
+      "race": "Oblivion.esm|00D3B99E",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Troll — Uderfrykte Matron",
+      "editorID": "TES4DiveRockHorrorRace",
+      "race": "Oblivion.esm|00C26972",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Black Bear",
+      "editorID": "TES4MS47BearBlackRace",
+      "race": "Oblivion.esm|00798C08",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Brown Bear",
+      "editorID": "TES4MS47BearBrownRace",
+      "race": "Oblivion.esm|00825F0C",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Boar",
+      "editorID": "TES4SummonBoarRace",
+      "race": "Oblivion.esm|005B528F",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Deer",
+      "editorID": "TES4LegionForesterBuckRace",
+      "race": "Oblivion.esm|00664DBF",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Deer",
+      "editorID": "TES4OblivionSiegeTargetRace",
+      "race": "Oblivion.esm|00412C3E",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — Bay Horse",
+      "editorID": "TES4HorseBayClaudeMaricRace",
+      "race": "Oblivion.esm|00E3C413",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — Black Horse",
+      "editorID": "TES4HorseBlackCourier4Race",
+      "race": "Oblivion.esm|0063E175",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — Blossom",
+      "editorID": "TES4MS45HorseBlossomRace",
+      "race": "Oblivion.esm|00DE626F",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — Chestnut Horse",
+      "editorID": "TES4HorseChestnut0StayPutRace",
+      "race": "Oblivion.esm|0021ED9D",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — Horse",
+      "editorID": "TES4TestHorseSkeletonRace",
+      "race": "Oblivion.esm|005334B5",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — My Bay Horse",
+      "editorID": "TES4HorsePCBaySkingradRace",
+      "race": "Oblivion.esm|008B649D",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — My Chestnut Horse",
+      "editorID": "TES4HorsePCChestnutChorrolRace",
+      "race": "Oblivion.esm|004A6705",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — My Paint Horse",
+      "editorID": "TES4HorsePCPaintLeyawiinRace",
+      "race": "Oblivion.esm|00953A6C",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — My White Horse",
+      "editorID": "TES4HorsePCWhiteAnvilRace",
+      "race": "Oblivion.esm|00833385",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — Paint Horse",
+      "editorID": "TES4DEADCreatureHorsePaintRace",
+      "race": "Oblivion.esm|00E9AAE9",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — Shadowmere",
+      "editorID": "TES4Dark10HorseRace",
+      "race": "Oblivion.esm|00663552",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — Unicorn",
+      "editorID": "TES4DAHircineUnicornRace",
+      "race": "Oblivion.esm|009269AD",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — Weynon Priory Horse",
+      "editorID": "TES4MQHorseJauffreRace",
+      "race": "Oblivion.esm|0085E716",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — White Horse",
+      "editorID": "TES4HorseWhite0StayCurrentRace",
+      "race": "Oblivion.esm|00E67D2D",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — Wild Bay Horse",
+      "editorID": "TES4CreatureHorseBayRace",
+      "race": "Oblivion.esm|008ACF0C",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Horse / Unicorn — Wild Chestnut Horse",
+      "editorID": "TES4CreatureHorseChestnutRace",
+      "race": "Oblivion.esm|00C77745",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Mountain Lion",
+      "editorID": "TES4MS47MountainLionRace",
+      "race": "Oblivion.esm|007BC775",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Mudcrab — Spectral Mud Crab",
+      "editorID": "TES4MQ15ParadiseMudCrabRace",
+      "race": "Oblivion.esm|005C9546",
+      "playable": true,
+      "spellHand": "Right"
+    },
+    {
+      "name": "Rat",
+      "editorID": "TES4TestToddRatRace",
+      "race": "Oblivion.esm|00D17755",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Sanctified Rat of Gibbering Dreams",
+      "editorID": "TES4SE11SanctifiedRatRace",
+      "race": "Oblivion.esm|0042135C",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Sheep",
+      "editorID": "TES4CreatureSheepRamRace",
+      "race": "Oblivion.esm|008B7F28",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Sheep",
+      "editorID": "TES4SanguineSheepRace",
+      "race": "Oblivion.esm|00A70D08",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Rumare Slaughterfish Brood Mother",
+      "editorID": "TES4SQ09SlaughterfishBroodMotherRace",
+      "race": "Oblivion.esm|0095EF67",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Wolf / Dog — Ghost Hound",
+      "editorID": "TES4TestSkeletalHoundRace",
+      "race": "Oblivion.esm|00D1D195",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Wolf / Dog — Greater Skinned Hound",
+      "editorID": "TES4SECreatureSkinnedHoundGreaterRace",
+      "race": "Oblivion.esm|00836A0F",
+      "playable": true,
+      "spellHand": "Left"
+    },
+    {
+      "name": "Wolf / Dog — Ushnar's Dog",
+      "editorID": "TES4SEUshnarDogRace",
+      "race": "Oblivion.esm|00B04968",
+      "playable": true,
+      "spellHand": "Left"
+    }
+  ]
+}
