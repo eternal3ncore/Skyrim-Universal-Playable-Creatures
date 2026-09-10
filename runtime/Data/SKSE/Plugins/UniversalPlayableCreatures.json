@@ -1,8 +1,0 @@
-{
-  "EnableCreatureRaceMenuCrashFix": true,
-  "EnableThirdPersonCameraNode": true,
-  "CameraNodeHeightZ": 121.0,
-
-  "EnableCreatureSpellHandRestriction": true,
-  "PlayableHumanoidSpellHand": "Both"
-}
