@@ -24,10 +24,9 @@ Compatibility combat is enabled per race with `useCombatWorkaround`. Native Skyr
 
 ## Examples
 
-- **Oblivion Minotaur:** playable with converted creature attacks, right-hand spell policy, combat workaround, and hidden sheathed weapon.
 - **Oblivion/Morroblivion creatures:** use their supplied converter-specific attack-family profiles to classify their existing attack events.
 - **Skyrim creatures:** can be made playable while retaining native combat where no workaround is required.
-- **Custom converted races:** can be added through a race catalog and assigned a custom `.attackfamilies.json` profile without hard-coding the race into the DLL.
+- **Custom creature races:** can be added through a race catalog and assigned a custom `.attackfamilies.json` profile without hard-coding the race into the DLL.
 
 ## Configuration
 
