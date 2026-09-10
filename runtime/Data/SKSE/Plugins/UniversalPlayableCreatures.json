@@ -4,8 +4,5 @@
   "CameraNodeHeightZ": 121.0,
 
   "EnableCreatureSpellHandRestriction": true,
-  "PlayableHumanoidSpellHand": "Both",
-
-  "EnableHideUnsupportedEquippedWeapons": true,
-  "EnableHideSheathedWeapons": true
+  "PlayableHumanoidSpellHand": "Both"
 }
