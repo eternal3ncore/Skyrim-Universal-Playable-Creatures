@@ -1,6 +1,6 @@
 # Universal Playable Creatures v0.2.20
 
-SKSE/CommonLibSSE-NG plugin for Skyrim AE 1.6.1170 that makes configured creature races practical to use as the player while preserving native behavior wherever possible. Universal Creature Controls is integrated into the same DLL.
+SKSE plugin for Skyrim Special Edition/Anniversary Edition that makes configured creature races practical to use as the player while preserving native behavior wherever possible. Developed and tested on runtime 1.6.1170 and built with CommonLibSSE-NG. Universal Creature Controls is integrated into the same DLL.
 
 ## Features
 
@@ -66,9 +66,11 @@ Included profiles cover Skyrim, Oblivion conversions, Morroblivion conversions, 
 
 Requirements:
 
-- Skyrim AE 1.6.1170
-- SKSE64
-- Address Library/CommonLibSSE-NG runtime requirements
+- Skyrim Special Edition/Anniversary Edition
+- SKSE64 appropriate for your Skyrim runtime
+- Address Library
+
+The current release is developed and runtime-tested on Skyrim 1.6.1170. Other runtimes have not yet been validated and should not be assumed supported solely because UPC is built with CommonLibSSE-NG.
 
 Install the compiled runtime files so the layout is:
 
