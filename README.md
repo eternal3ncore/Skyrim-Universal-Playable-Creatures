@@ -92,16 +92,6 @@ Runtime log:
 Documents\My Games\Skyrim Special Edition\SKSE\UniversalPlayableCreatures.log
 ```
 
-## Building
-
-The repository includes the CommonLibSSE-NG source, CMake/vcpkg configuration, and `build.ps1`.
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\build.ps1
-```
-
-See `DEVELOPMENT_RECORD.txt` for implementation history, runtime tests, failed experiments, and version lineage.
-
 ## License
 
 Source available — All Rights Reserved. This project is not open source. See `LICENSE` for permitted uses.
