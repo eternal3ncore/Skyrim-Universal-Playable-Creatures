@@ -7,13 +7,138 @@ namespace UPC::RaceCatalog
     namespace
     {
         constexpr auto kRaceConfigDir = "Data/SKSE/Plugins/UniversalPlayableCreatures"sv;
+        constexpr auto kAttackFamilyConfigDir = "Data/SKSE/Plugins/UniversalPlayableCreatures/AttackFamilies"sv;
 
         std::unordered_map<const RE::TESRace*, HandPolicy> g_spellHands;
         std::unordered_map<const RE::TESRace*, WeaponVisibilityPolicy> g_weaponVisibility;
+        std::unordered_map<const RE::TESRace*, std::string> g_attackFamilyNames;
+        std::unordered_map<std::string, AttackFamilyProfile> g_attackFamilies;
         std::unordered_set<const RE::TESRace*> g_enabledRaces;
         std::unordered_set<const RE::TESRace*> g_seenRaces;
+        std::unordered_set<const RE::TESRace*> g_combatWorkaroundRaces;
         std::size_t g_entryCount = 0;
         std::size_t g_resolvedCount = 0;
+
+
+        std::string Lower(std::string value)
+        {
+            std::ranges::transform(value, value.begin(), [](unsigned char c) {
+                return static_cast<char>(std::tolower(c));
+            });
+            return value;
+        }
+
+        std::vector<std::string> ParseStringArray(
+            const nlohmann::json& object,
+            std::string_view key,
+            std::string_view profileName)
+        {
+            std::vector<std::string> out;
+            const auto it = object.find(std::string(key));
+            if (it == object.end()) {
+                return out;
+            }
+            if (!it->is_array()) {
+                logger::warn(
+                    "Attack family [{}] field '{}' must be an array of strings",
+                    profileName, key);
+                return out;
+            }
+            for (const auto& value : *it) {
+                if (!value.is_string()) {
+                    logger::warn(
+                        "Attack family [{}] field '{}' contains a non-string value; skipped",
+                        profileName, key);
+                    continue;
+                }
+                auto marker = Lower(value.get<std::string>());
+                if (!marker.empty()) {
+                    out.push_back(std::move(marker));
+                }
+            }
+            return out;
+        }
+
+        void LoadAttackFamilies(const std::filesystem::path& path)
+        {
+            std::ifstream file(path, std::ios::binary);
+            if (!file) {
+                logger::warn(
+                    "Attack-family catalog not found: {}; configured races will use generic BGSAttackData discovery",
+                    path.string());
+                return;
+            }
+
+            const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            nlohmann::json root;
+            try {
+                root = nlohmann::json::parse(text, nullptr, true, true);
+            } catch (const std::exception& e) {
+                logger::error("Attack-family catalog parse failed [{}]: {}", path.filename().string(), e.what());
+                return;
+            }
+
+            const auto familiesIt = root.find("attackFamilies");
+            if (familiesIt == root.end() || !familiesIt->is_array()) {
+                logger::warn("Attack-family catalog [{}] has no object array named 'attackFamilies'", path.filename().string());
+                return;
+            }
+
+            std::size_t loaded = 0;
+            for (const auto& item : *familiesIt) {
+                if (!item.is_object()) {
+                    logger::warn("Attack-family catalog [{}] skipped non-object entry", path.filename().string());
+                    continue;
+                }
+
+                const auto nameIt = item.find("name");
+                if (nameIt == item.end() || !nameIt->is_string() || nameIt->get<std::string>().empty()) {
+                    logger::warn("Attack-family catalog [{}] skipped entry without non-empty string 'name'", path.filename().string());
+                    continue;
+                }
+
+                AttackFamilyProfile profile;
+                profile.name = nameIt->get<std::string>();
+                profile.eventPrefixes = ParseStringArray(item, "eventPrefixes", profile.name);
+                profile.swimmingPrefixes = ParseStringArray(item, "swimmingPrefixes", profile.name);
+                profile.powerMarkers = ParseStringArray(item, "powerMarkers", profile.name);
+                profile.bashMarkers = ParseStringArray(item, "bashMarkers", profile.name);
+                profile.blockAttackMarkers = ParseStringArray(item, "blockAttackMarkers", profile.name);
+                profile.counterAttackMarkers = ParseStringArray(item, "counterAttackMarkers", profile.name);
+                profile.excludedAttackMarkers = ParseStringArray(item, "excludedAttackMarkers", profile.name);
+
+                if (const auto weaponsIt = item.find("weaponFamilies"); weaponsIt != item.end()) {
+                    if (!weaponsIt->is_object()) {
+                        logger::warn("Attack family [{}] field 'weaponFamilies' must be an object", profile.name);
+                    } else {
+                        profile.oneHandMarkers = ParseStringArray(*weaponsIt, "oneHand", profile.name);
+                        profile.twoHandMarkers = ParseStringArray(*weaponsIt, "twoHand", profile.name);
+                        profile.unarmedMarkers = ParseStringArray(*weaponsIt, "unarmed", profile.name);
+                        profile.bowMarkers = ParseStringArray(*weaponsIt, "bow", profile.name);
+                        profile.staffMarkers = ParseStringArray(*weaponsIt, "staff", profile.name);
+                    }
+                }
+
+                if (const auto redispatchIt = item.find("redispatchMatchedEvents"); redispatchIt != item.end()) {
+                    if (redispatchIt->is_boolean()) {
+                        profile.redispatchMatchedEvents = redispatchIt->get<bool>();
+                    } else {
+                        logger::warn(
+                            "Attack family [{}] invalid redispatchMatchedEvents type; using false",
+                            profile.name);
+                    }
+                }
+
+                const auto key = Lower(profile.name);
+                if (g_attackFamilies.contains(key)) {
+                    logger::warn("Attack-family catalog duplicate profile '{}'; later definition overrides earlier", profile.name);
+                }
+                g_attackFamilies[key] = std::move(profile);
+                ++loaded;
+            }
+
+            logger::info("Attack-family catalog [{}]: profiles={}", path.filename().string(), loaded);
+        }
 
         std::optional<HandPolicy> ParseHand(std::string value)
         {
@@ -24,6 +149,27 @@ namespace UPC::RaceCatalog
             if (value == "right") return HandPolicy::kRight;
             if (value == "both") return HandPolicy::kBoth;
             return std::nullopt;
+        }
+
+        std::optional<std::string> PluginFromRaceSpec(std::string_view spec)
+        {
+            const auto bar = spec.rfind('|');
+            if (bar == std::string_view::npos || bar == 0 || bar + 1 >= spec.size()) {
+                return std::nullopt;
+            }
+            return std::string(spec.substr(0, bar));
+        }
+
+        bool PluginLoaded(std::string_view plugin)
+        {
+            if (plugin.empty()) {
+                return false;
+            }
+            if (auto* data = RE::TESDataHandler::GetSingleton()) {
+                return data->LookupLoadedModByName(plugin) != nullptr ||
+                       data->LookupLoadedLightModByName(plugin) != nullptr;
+            }
+            return false;
         }
 
         RE::TESRace* ResolveRace(std::string_view spec)
@@ -73,6 +219,9 @@ namespace UPC::RaceCatalog
             std::size_t filePlayable = 0;
             std::size_t filePolicies = 0;
             std::size_t fileWeaponPolicies = 0;
+            std::size_t fileCombatWorkarounds = 0;
+            std::unordered_map<std::string, bool> pluginLoadedCache;
+            std::unordered_set<std::string> unloadedPluginsReported;
 
             for (const auto& item : *it) {
                 if (!item.is_object()) {
@@ -89,6 +238,23 @@ namespace UPC::RaceCatalog
                 ++g_entryCount;
                 ++fileEntries;
                 const auto spec = raceIt->get<std::string>();
+                const auto plugin = PluginFromRaceSpec(spec);
+                if (plugin) {
+                    const auto pluginKey = Lower(*plugin);
+                    const auto [loadedIt, inserted] = pluginLoadedCache.try_emplace(pluginKey, false);
+                    if (inserted) {
+                        loadedIt->second = PluginLoaded(*plugin);
+                    }
+                    if (!loadedIt->second) {
+                        if (unloadedPluginsReported.insert(pluginKey).second) {
+                            logger::info(
+                                "Race catalog [{}] skipping entries for unloaded plugin '{}'",
+                                path.filename().string(), *plugin);
+                        }
+                        continue;
+                    }
+                }
+
                 auto* race = ResolveRace(spec);
                 if (!race) {
                     logger::warn("Race catalog unresolved [{}]: {}", path.filename().string(), spec);
@@ -100,7 +266,7 @@ namespace UPC::RaceCatalog
 
                 if (!g_seenRaces.insert(race).second) {
                     logger::warn(
-                        "Race catalog duplicate [{}]: {}; later row overrides prior availability/hand/weapon metadata",
+                        "Race catalog duplicate [{}]: {}; later row overrides prior availability/hand/weapon/combat metadata",
                         path.filename().string(), spec);
                 }
 
@@ -109,6 +275,8 @@ namespace UPC::RaceCatalog
                 g_enabledRaces.erase(race);
                 g_spellHands.erase(race);
                 g_weaponVisibility.erase(race);
+                g_attackFamilyNames.erase(race);
+                g_combatWorkaroundRaces.erase(race);
 
                 const bool playable = item.value("playable", false);
                 if (playable) {
@@ -155,11 +323,38 @@ namespace UPC::RaceCatalog
                 }
                 g_weaponVisibility[race] = weaponPolicy;
                 ++fileWeaponPolicies;
+
+                if (const auto combatIt = item.find("useCombatWorkaround"); combatIt != item.end()) {
+                    if (combatIt->is_boolean()) {
+                        if (combatIt->get<bool>()) {
+                            g_combatWorkaroundRaces.insert(race);
+                            ++fileCombatWorkarounds;
+                        }
+                    } else {
+                        logger::warn("Race catalog [{}] invalid useCombatWorkaround type for {}; using false", path.filename().string(), spec);
+                    }
+                }
+
+                if (const auto familyIt = item.find("attackFamily"); familyIt != item.end()) {
+                    if (!familyIt->is_string()) {
+                        logger::warn("Race catalog [{}] invalid attackFamily type for {}; generic attack discovery will be used", path.filename().string(), spec);
+                    } else {
+                        auto familyName = familyIt->get<std::string>();
+                        if (!familyName.empty()) {
+                            g_attackFamilyNames[race] = familyName;
+                            if (!g_attackFamilies.contains(Lower(familyName))) {
+                                logger::warn(
+                                    "Race catalog [{}] attackFamily '{}' for {} is not defined; generic attack discovery will be used",
+                                    path.filename().string(), familyName, spec);
+                            }
+                        }
+                    }
+                }
             }
 
             logger::info(
-                "Race catalog [{}]: entries={} resolved={} playableApplied={} spellPolicies={} weaponPolicies={}",
-                path.filename().string(), fileEntries, fileResolved, filePlayable, filePolicies, fileWeaponPolicies);
+                "Race catalog [{}]: entries={} resolved={} playableApplied={} spellPolicies={} weaponPolicies={} combatWorkarounds={}",
+                path.filename().string(), fileEntries, fileResolved, filePlayable, filePolicies, fileWeaponPolicies, fileCombatWorkarounds);
         }
     }
 
@@ -167,10 +362,47 @@ namespace UPC::RaceCatalog
     {
         g_spellHands.clear();
         g_weaponVisibility.clear();
+        g_attackFamilyNames.clear();
+        g_attackFamilies.clear();
         g_enabledRaces.clear();
         g_seenRaces.clear();
+        g_combatWorkaroundRaces.clear();
         g_entryCount = 0;
         g_resolvedCount = 0;
+
+        const std::filesystem::path familyDir{ std::string(kAttackFamilyConfigDir) };
+        std::vector<std::filesystem::path> familyFiles;
+        std::error_code familyEc;
+        if (std::filesystem::is_directory(familyDir, familyEc)) {
+            for (std::filesystem::directory_iterator it(familyDir, familyEc), end;
+                 !familyEc && it != end; it.increment(familyEc)) {
+                if (!it->is_regular_file()) {
+                    continue;
+                }
+
+                const auto filename = Lower(it->path().filename().string());
+                if (filename.ends_with(".attackfamilies.json")) {
+                    familyFiles.push_back(it->path());
+                }
+            }
+
+            if (familyEc) {
+                logger::error("Attack-family folder scan failed: {}", familyEc.message());
+                familyFiles.clear();
+            }
+        } else if (familyEc) {
+            logger::warn("Attack-family folder check failed [{}]: {}", kAttackFamilyConfigDir, familyEc.message());
+        } else {
+            logger::info("Attack-family folder not present; named attack-family profiles will be unavailable: {}", kAttackFamilyConfigDir);
+        }
+
+        // Profile files are parsed exactly once during the DataLoaded catalog pass.
+        // Gameplay attack input performs only in-memory lookups; save loads and
+        // attack presses never re-read JSON from disk.
+        std::ranges::sort(familyFiles);
+        for (const auto& path : familyFiles) {
+            LoadAttackFamilies(path);
+        }
 
         const std::filesystem::path dir{ std::string(kRaceConfigDir) };
         std::error_code ec;
@@ -181,12 +413,13 @@ namespace UPC::RaceCatalog
 
         std::vector<std::filesystem::path> files;
         for (std::filesystem::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
-            if (!it->is_regular_file()) continue;
-            auto ext = it->path().extension().string();
-            std::ranges::transform(ext, ext.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            if (ext == ".json") files.push_back(it->path());
+            if (!it->is_regular_file()) {
+                continue;
+            }
+            auto ext = Lower(it->path().extension().string());
+            if (ext == ".json") {
+                files.push_back(it->path());
+            }
         }
 
         if (ec) {
@@ -200,18 +433,36 @@ namespace UPC::RaceCatalog
         }
 
         // Duplicate tracking is load-time-only; release its buckets after the
-        // deterministic catalog pass. Runtime lookups retain only enabled/hand maps.
+        // deterministic catalog pass. Runtime lookups retain only resolved maps.
         g_seenRaces.clear();
         g_seenRaces.rehash(0);
 
         logger::info(
-            "Race catalogs loaded: files={} entries={} resolved={} enabled={} spellPolicies={} weaponPolicies={} playableApplication={}",
-            files.size(), g_entryCount, g_resolvedCount, g_enabledRaces.size(), g_spellHands.size(), g_weaponVisibility.size(), applyPlayableFlags);
+            "Race catalogs loaded: raceFiles={} attackFamilyFiles={} entries={} resolved={} enabled={} spellPolicies={} weaponPolicies={} combatWorkarounds={} attackFamilyAssignments={} attackFamilyProfiles={} playableApplication={}",
+            files.size(), familyFiles.size(), g_entryCount, g_resolvedCount, g_enabledRaces.size(), g_spellHands.size(), g_weaponVisibility.size(), g_combatWorkaroundRaces.size(), g_attackFamilyNames.size(), g_attackFamilies.size(), applyPlayableFlags);
     }
 
     bool IsEnabled(const RE::TESRace* race)
     {
         return race && g_enabledRaces.contains(race);
+    }
+
+    bool UseCombatWorkaround(const RE::TESRace* race)
+    {
+        return race && g_combatWorkaroundRaces.contains(race);
+    }
+
+    const AttackFamilyProfile* GetAttackFamily(const RE::TESRace* race)
+    {
+        if (!race) {
+            return nullptr;
+        }
+        const auto assignment = g_attackFamilyNames.find(race);
+        if (assignment == g_attackFamilyNames.end()) {
+            return nullptr;
+        }
+        const auto profile = g_attackFamilies.find(Lower(assignment->second));
+        return profile != g_attackFamilies.end() ? std::addressof(profile->second) : nullptr;
     }
 
     std::optional<HandPolicy> GetSpellHand(const RE::TESRace* race)

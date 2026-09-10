@@ -6,7 +6,7 @@
 
 namespace
 {
-    constexpr REL::Version kPluginVersion{ 0, 2, 13, 0 };
+    constexpr REL::Version kPluginVersion{ 0, 2, 20, 0 };
     constexpr auto kPluginName = "UniversalPlayableCreatures"sv;
     constexpr auto kConfigPath = "Data/SKSE/Plugins/UniversalPlayableCreatures.json"sv;
     constexpr char kRaceMenuName[] = "RaceSex Menu";
@@ -135,8 +135,8 @@ namespace
     namespace RaceMenuFix
     {
         std::atomic_bool g_latentCreatureRaceMenu{ false };
-        constexpr uintptr_t kPatchA = 0x432550;
-        constexpr uintptr_t kPatchB = 0x432D50;
+        constexpr REL::ID kPatchA{ 26988 };
+        constexpr REL::ID kPatchB{ 26993 };
         using FnA = void (*)(void*, std::uint8_t);
         using FnB = void (*)(void*, std::uint32_t, std::uint32_t);
         FnA g_originalA = nullptr;
@@ -215,15 +215,19 @@ namespace
                 logger::info("RaceMenu crash fix disabled by config");
                 return true;
             }
-            auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(L"SkyrimSE.exe"));
+            const REL::Relocation<std::uintptr_t> targetA{ kPatchA };
+            const REL::Relocation<std::uintptr_t> targetB{ kPatchB };
+            const auto addressA = targetA.address();
+            const auto addressB = targetB.address();
             constexpr std::array<std::uint8_t, 19> sigA{ 0x88, 0x54, 0x24, 0x10, 0x4c, 0x8b, 0xdc, 0x56, 0x41, 0x54, 0x41, 0x56, 0x48, 0x81, 0xec, 0xe0, 0, 0, 0 };
             constexpr std::array<std::uint8_t, 14> sigB{ 0x48, 0x89, 0x5c, 0x24, 0x18, 0x55, 0x41, 0x56, 0x41, 0x57, 0x48, 0x83, 0xec, 0x40 };
-            if (!base || std::memcmp(reinterpret_cast<void*>(base + kPatchA), sigA.data(), sigA.size()) || std::memcmp(reinterpret_cast<void*>(base + kPatchB), sigB.data(), sigB.size())) {
+            if (!addressA || !addressB || std::memcmp(reinterpret_cast<void*>(addressA), sigA.data(), sigA.size()) || std::memcmp(reinterpret_cast<void*>(addressB), sigB.data(), sigB.size())) {
                 logger::error("RaceMenu crash fix signature check failed; hooks not installed");
                 return false;
             }
-            g_originalA = reinterpret_cast<FnA>(Detour(base + kPatchA, reinterpret_cast<void*>(&HookA), sigA.size()));
-            g_originalB = reinterpret_cast<FnB>(Detour(base + kPatchB, reinterpret_cast<void*>(&HookB), sigB.size()));
+            logger::info("RaceMenu hook targets resolved through Address Library: A=ID {} RVA=0x{:X}, B=ID {} RVA=0x{:X}", kPatchA.id(), targetA.offset(), kPatchB.id(), targetB.offset());
+            g_originalA = reinterpret_cast<FnA>(Detour(addressA, reinterpret_cast<void*>(&HookA), sigA.size()));
+            g_originalB = reinterpret_cast<FnB>(Detour(addressB, reinterpret_cast<void*>(&HookB), sigB.size()));
             logger::info("RaceMenu crash safeguards {}", (g_originalA && g_originalB) ? "enabled" : "failed");
             return g_originalA && g_originalB;
         }

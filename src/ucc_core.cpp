@@ -90,18 +90,36 @@ namespace
     bool g_forceSheatheSprintHeld = false;
     bool g_forceSheatheChordLatched = false;
 
-    // Hand-equip preservation uses TESEquipEvent as its single equipment-activity
-    // notification source. The event never decides relevance from baseObject; a
-    // one-shot game task compares Skyrim's authoritative left/right equipped forms
-    // against this cache after the equip operation settles. Equipment-capable menus
-    // merely defer that same check until close. No input inference, NiNode equipment
-    // detection, polling, timers, hooks, form classification, or serialization.
+    // TESEquipEvent is only an activity notification. A one-shot settled check
+    // snapshots each hand independently. Any real hand change made while the
+    // converted creature is ready gets the proven sheathe -> EndSheathe -> redraw
+    // graph reset. The complete authoritative post-change hand state is retained
+    // as the transaction target so actor-wide sheathe side effects cannot discard
+    // a newly equipped weapon/spell or the unchanged opposite hand.
+    // No polling/timers/serialization.
+    enum class HandEquipKind : std::uint8_t
+    {
+        kEmpty,
+        kWeapon,
+        kSpell,
+        kOther
+    };
+
+    struct HandEquipState
+    {
+        RE::FormID formID = 0;
+        HandEquipKind kind = HandEquipKind::kEmpty;
+    };
+
     bool g_handEquipRedrawPending = false;
     RE::FormID g_handEquipTriggerForm = 0;
+    bool g_handEquipTriggerLeft = false;
+    HandEquipState g_handEquipTargetLeft{};
+    HandEquipState g_handEquipTargetRight{};
     bool g_creatureReadyState = false;
     bool g_creatureReadyStateKnown = false;
-    RE::FormID g_cachedLeftHandForm = 0;
-    RE::FormID g_cachedRightHandForm = 0;
+    HandEquipState g_cachedLeftHand{};
+    HandEquipState g_cachedRightHand{};
     bool g_handEquipCacheValid = false;
     bool g_handEquipMenuOpen = false;
     bool g_equipmentCheckPending = false;
@@ -123,21 +141,22 @@ namespace
         bool back = false;
         bool left = false;
         bool right = false;
-        bool tes4Event = false;
+        bool profileEvent = false;
         bool swim = false;
-        bool tes4NamedPower = false;
+        bool profileNamedPower = false;
         bool nameLooksBash = false;
-        bool tes4BlockAttack = false;
-        bool tes4CounterAttack = false;
+        bool profileBlockAttack = false;
+        bool profileCounterAttack = false;
+        bool profileExcludedAttack = false;
 
         bool HasExplicitWeaponFamily() const
         {
             return oneHand || twoHand || unarmed || bow || staff;
         }
 
-        bool HasExplicitTES4Context() const
+        bool HasExplicitProfileContext() const
         {
-            return tes4Event && (HasExplicitWeaponFamily() || swim);
+            return profileEvent && (HasExplicitWeaponFamily() || swim);
         }
     };
 
@@ -225,6 +244,8 @@ namespace
 
 
 
+    void ResetPendingWorkbenchContext(std::string_view reason);
+
     void StopAllCreatureOnlyStates()
     {
         ForcePlayerCollisionEnabled();
@@ -239,10 +260,7 @@ namespace
         g_leftSelfConcentrationHeld = false;
         g_rightSelfConcentrationHeld = false;
 
-        g_workbenchActivationPending = false;
-        g_pendingBenchType =
-            RE::TESFurniture::WorkBenchData::BenchType::kNone;
-        g_pendingWorkbenchRef = {};
+        ResetPendingWorkbenchContext("creature-mode-exit");
         g_leftPendingFallbackCast = {};
         g_rightPendingFallbackCast = {};
         g_leftSpellPress = {};
@@ -274,10 +292,13 @@ namespace
         g_forceSheatheChordLatched = false;
         g_handEquipRedrawPending = false;
         g_handEquipTriggerForm = 0;
+        g_handEquipTriggerLeft = false;
+        g_handEquipTargetLeft = {};
+        g_handEquipTargetRight = {};
         g_creatureReadyState = false;
         g_creatureReadyStateKnown = false;
-        g_cachedLeftHandForm = 0;
-        g_cachedRightHandForm = 0;
+        g_cachedLeftHand = {};
+        g_cachedRightHand = {};
         g_handEquipCacheValid = false;
         g_handEquipMenuOpen = false;
         g_equipmentCheckPending = false;
@@ -312,12 +333,17 @@ namespace
             return CreatureInputPolicy::kCraftingOnly;
         }
 
-        // The race catalog is the authoritative availability gate for all other
-        // playable creatures. A resolved row with playable=false remains useful
-        // for metadata (for example spellHand) but does not receive UCC controls.
-        return UPC::RaceCatalog::IsEnabled(race) ?
+        // The race catalog is authoritative for both availability and the combat
+        // compatibility workaround. A playable creature with the workaround
+        // disabled keeps Skyrim's native combat/casting path while still receiving
+        // UPC metadata-driven features and crafting interception. Missing/invalid
+        // useCombatWorkaround safely defaults to false.
+        if (!UPC::RaceCatalog::IsEnabled(race)) {
+            return CreatureInputPolicy::kNormalPlayer;
+        }
+        return UPC::RaceCatalog::UseCombatWorkaround(race) ?
             CreatureInputPolicy::kUniversalCreature :
-            CreatureInputPolicy::kNormalPlayer;
+            CreatureInputPolicy::kCraftingOnly;
     }
 
     const char* InputPolicyName(CreatureInputPolicy policy)
@@ -404,49 +430,75 @@ namespace
     }
 
 
-    AttackNameTraits ClassifyAttackNameTraits(std::string_view lower)
+    bool ContainsAnyMarker(
+        std::string_view value,
+        const std::vector<std::string>& markers)
+    {
+        return std::ranges::any_of(markers, [value](const std::string& marker) {
+            return !marker.empty() && value.find(marker) != std::string_view::npos;
+        });
+    }
+
+    bool StartsWithAnyMarker(
+        std::string_view value,
+        const std::vector<std::string>& prefixes)
+    {
+        return std::ranges::any_of(prefixes, [value](const std::string& prefix) {
+            return !prefix.empty() && value.starts_with(prefix);
+        });
+    }
+
+    bool MatchesAttackFamilyEvent(
+        std::string_view lower,
+        const UPC::AttackFamilyProfile* profile)
+    {
+        if (!profile) {
+            return false;
+        }
+        return profile->eventPrefixes.empty() ||
+               StartsWithAnyMarker(lower, profile->eventPrefixes);
+    }
+
+    AttackNameTraits ClassifyAttackNameTraits(
+        std::string_view lower,
+        const UPC::AttackFamilyProfile* profile)
     {
         AttackNameTraits traits;
-        traits.oneHand =
-            lower.find("onehand") != std::string::npos ||
-            lower.find("1hand") != std::string::npos;
-        traits.twoHand =
-            lower.find("twohand") != std::string::npos ||
-            lower.find("2hand") != std::string::npos;
-        traits.unarmed =
-            lower.find("handtohand") != std::string::npos ||
-            lower.find("unarmed") != std::string::npos;
-        traits.bow =
-            lower.find("attackbow") != std::string::npos ||
-            lower.find("bowattack") != std::string::npos ||
-            lower.find("crossbow") != std::string::npos;
-        traits.staff =
-            lower.find("staffattack") != std::string::npos ||
-            lower.find("attackstaff") != std::string::npos;
+
+        // Direction names are generic metadata hints used by power-attack
+        // selection. Converter-specific weapon/action families come entirely
+        // from the selected external attack-family profile.
         traits.forward = lower.find("forward") != std::string::npos;
         traits.back =
             lower.find("backward") != std::string::npos ||
             lower.find("back") != std::string::npos;
         traits.left = lower.find("left") != std::string::npos;
         traits.right = lower.find("right") != std::string::npos;
-        traits.tes4Event = lower.starts_with("attackstart_tes4_");
-        traits.swim =
-            traits.tes4Event &&
-            lower.starts_with("attackstart_tes4_swim");
-        traits.tes4NamedPower =
-            traits.tes4Event &&
-            lower.find("power") != std::string::npos;
-        traits.nameLooksBash = lower.find("bash") != std::string::npos;
-        traits.tes4BlockAttack =
-            traits.tes4Event &&
-            lower.find("blockattack") != std::string::npos;
-        traits.tes4CounterAttack =
-            traits.tes4Event &&
-            lower.find("counterattack") != std::string::npos;
+
+        traits.profileEvent = MatchesAttackFamilyEvent(lower, profile);
+        if (traits.profileEvent && profile) {
+            traits.oneHand = ContainsAnyMarker(lower, profile->oneHandMarkers);
+            traits.twoHand = ContainsAnyMarker(lower, profile->twoHandMarkers);
+            traits.unarmed = ContainsAnyMarker(lower, profile->unarmedMarkers);
+            traits.bow = ContainsAnyMarker(lower, profile->bowMarkers);
+            traits.staff = ContainsAnyMarker(lower, profile->staffMarkers);
+            traits.swim = StartsWithAnyMarker(lower, profile->swimmingPrefixes);
+            traits.profileNamedPower = ContainsAnyMarker(lower, profile->powerMarkers);
+            traits.nameLooksBash = ContainsAnyMarker(lower, profile->bashMarkers);
+            traits.profileBlockAttack = ContainsAnyMarker(lower, profile->blockAttackMarkers);
+            traits.profileCounterAttack = ContainsAnyMarker(lower, profile->counterAttackMarkers);
+            traits.profileExcludedAttack = ContainsAnyMarker(lower, profile->excludedAttackMarkers);
+        } else {
+            // Generic discovery intentionally has no converted-family knowledge.
+            // Keep only the long-standing malformed/native bash-name safety net.
+            traits.nameLooksBash = lower.find("bash") != std::string::npos;
+        }
         return traits;
     }
 
-    std::vector<AttackChoice> GetCreatureAttacks(RE::TESRace* race)
+    std::vector<AttackChoice> GetCreatureAttacks(
+        RE::TESRace* race,
+        const UPC::AttackFamilyProfile* profile)
     {
         std::vector<AttackChoice> result;
         if (!race || !race->attackDataMap) {
@@ -475,7 +527,7 @@ namespace
             AttackChoice choice;
             choice.event = std::move(evt);
             choice.data = data;
-            choice.traits = ClassifyAttackNameTraits(lower);
+            choice.traits = ClassifyAttackNameTraits(lower, profile);
             result.push_back(std::move(choice));
         }
 
@@ -493,19 +545,24 @@ namespace
             return false;
         }
 
-        // Native Skyrim attack records expose the authoritative ATKD power flag.
+        // Native Skyrim creature data can distinguish authored heavy/lunge
+        // attacks with either PowerAttack or ChargeAttack. UPC exposes both
+        // through its player power-attack input and must never rotate a
+        // ChargeAttack through the ordinary attack button.
         if (choice.data->data.flags.any(
-                RE::AttackData::AttackFlag::kPowerAttack)) {
+                RE::AttackData::AttackFlag::kPowerAttack) ||
+            choice.data->data.flags.any(
+                RE::AttackData::AttackFlag::kChargeAttack)) {
             return true;
         }
 
-        // Converted TES4 ATKE/ATKD records do not consistently preserve Skyrim's
-        // kPowerAttack bit even though the converter gives their authored power
-        // clips explicit attackStart_TES4_*power* event names. Treat that explicit
+        // Converted ATKE/ATKD records do not consistently preserve Skyrim's
+        // kPowerAttack bit even though the selected attack-family profile identifies their authored
+        // power-event naming markers. Treat that explicit
         // converted naming as a compatibility fallback so those records never
         // enter the normal attack rotation and remain available to Sneak.
         // Metadata remains primary for native/custom Skyrim creature records.
-        return choice.traits.tes4NamedPower;
+        return choice.traits.profileNamedPower;
     }
 
     bool IsBashAttackData(const AttackChoice& choice)
@@ -529,16 +586,16 @@ namespace
         return choice.traits.nameLooksBash;
     }
 
-    bool IsTES4SpecialAttackName(const AttackChoice& choice)
+    bool IsProfileSpecialAttackName(const AttackChoice& choice)
     {
-        // Oblivion-authored block/counter attacks are ordinary ATKD entries in
-        // some converted races (for example Golden Saint) and do not reliably
-        // carry Skyrim's kBashAttack flag. They belong to the block/counter
-        // lifecycle, not the player's primary attack rotation. Restrict the
-        // compatibility fallback to the converter's explicit `blockattack`
-        // event family so unrelated names containing "block" are unaffected.
-        return choice.traits.tes4BlockAttack ||
-               choice.traits.tes4CounterAttack;
+        // Profile-defined block/counter/excluded attacks are ordinary ATKD
+        // entries in some converted races and do not reliably carry Skyrim's
+        // kBashAttack flag. They must not enter the player's primary attack
+        // rotation. Restrict this compatibility exclusion to the selected
+        // profile's explicit markers so unrelated native names are unaffected.
+        return choice.traits.profileBlockAttack ||
+               choice.traits.profileCounterAttack ||
+               choice.traits.profileExcludedAttack;
     }
 
     void RefreshAttackCapabilityProfile(RE::TESRace* race)
@@ -552,26 +609,43 @@ namespace
             return;
         }
 
-        const auto all = GetCreatureAttacks(race);
+        const auto* familyProfile = UPC::RaceCatalog::GetAttackFamily(race);
+        const auto all = GetCreatureAttacks(race, familyProfile);
         for (const auto& choice : all) {
-            // Classification order matters: a bash record is a special action
-            // even if another flag is also present. Never let it enter either
-            // player attack rotation.
-            if (IsBashAttackData(choice) || IsTES4SpecialAttackName(choice)) {
+            // Classification order matters: a bash/profile-excluded record is
+            // special even if another flag is also present. ChargeAttack is
+            // intentionally power-like for UPC player controls.
+            const bool special =
+                IsBashAttackData(choice) || IsProfileSpecialAttackName(choice);
+            const bool power = !special && IsPowerAttackData(choice);
+
+            if (special) {
                 g_cachedSpecialAttacks.push_back(choice);
-            } else if (IsPowerAttackData(choice)) {
+            } else if (power) {
                 g_cachedPowerAttacks.push_back(choice);
             } else {
                 g_cachedNormalAttacks.push_back(choice);
             }
+
+            spdlog::info(
+                "Creature attack record: event='{}' powerFlag={} chargeFlag={} bashFlag={} rotatingFlag={} continuousFlag={} profileNamedPower={} bucket={}",
+                choice.event,
+                choice.data->data.flags.any(RE::AttackData::AttackFlag::kPowerAttack),
+                choice.data->data.flags.any(RE::AttackData::AttackFlag::kChargeAttack),
+                choice.data->data.flags.any(RE::AttackData::AttackFlag::kBashAttack),
+                choice.data->data.flags.any(RE::AttackData::AttackFlag::kRotatingAttack),
+                choice.data->data.flags.any(RE::AttackData::AttackFlag::kContinuousAttack),
+                choice.traits.profileNamedPower,
+                special ? "special" : (power ? "power" : "normal"));
         }
 
         g_hasUsableAttackData = !g_cachedNormalAttacks.empty() ||
                                 !g_cachedPowerAttacks.empty();
 
         spdlog::info(
-            "Creature attack capability: race={:08X} normal={} power={} special={} usable={}",
+            "Creature attack capability: race={:08X} attackFamily={} normal={} power={} special={} usable={}",
             race->GetFormID(),
+            familyProfile ? familyProfile->name : std::string("<generic>"),
             g_cachedNormalAttacks.size(),
             g_cachedPowerAttacks.size(),
             g_cachedSpecialAttacks.size(),
@@ -678,7 +752,7 @@ namespace
         }
     }
 
-    bool IsTES4SwimmingContext(RE::PlayerCharacter* player)
+    bool IsConfiguredSwimmingContext(RE::PlayerCharacter* player)
     {
         if (!player) {
             return false;
@@ -702,7 +776,13 @@ namespace
             return {};
         }
 
-        const bool swimming = IsTES4SwimmingContext(player);
+        const bool hasConfiguredSwimFamily = std::ranges::any_of(
+            source, [](const AttackChoice& choice) { return choice.traits.swim; });
+        if (!hasConfiguredSwimFamily) {
+            return source;
+        }
+
+        const bool swimming = IsConfiguredSwimmingContext(player);
         std::vector<AttackChoice> out;
         out.reserve(source.size());
 
@@ -744,7 +824,7 @@ namespace
         // Prefer an explicitly matching weapon family when the attack event
         // names provide one. Native Skyrim creature ATKE names are often
         // family-neutral, so neutral events are accepted before any cross-family
-        // fallback instead of being filtered out by TES4 naming assumptions.
+        // fallback instead of being filtered out by converted naming assumptions.
         auto preferred = FilterNormalAttackFamily(normal, equippedFamily);
         if (!preferred.empty()) {
             return preferred;
@@ -805,13 +885,13 @@ namespace
         }
 
         // Preserve metadata fallback for native/custom attacks whose names do
-        // not express a weapon family. Do NOT let an explicitly contextual TES4
+        // not express a weapon family. Do NOT let an explicitly contextual configured
         // event (bow/staff/H2H/1H/2H/swim) leak through after its context failed.
         // That permissive fallback is what previously selected ranged/swim/special
         // animations in the wrong situation.
         std::vector<AttackChoice> metadataFallback;
         for (const auto& choice : normal) {
-            if (!choice.traits.HasExplicitTES4Context()) {
+            if (!choice.traits.HasExplicitProfileContext()) {
                 metadataFallback.push_back(choice);
             }
         }
@@ -822,7 +902,7 @@ namespace
         }
 
         spdlog::info(
-            "Normal attack: explicit TES4 attack families are incompatible with current context");
+            "Normal attack: explicit configured attack families are incompatible with current context");
         return {};
     }
 
@@ -1106,7 +1186,7 @@ namespace
         // boundary merely because no preferred family matched.
         if (weaponMatches.empty()) {
             for (const auto& choice : pool) {
-                if (!choice.traits.HasExplicitTES4Context()) {
+                if (!choice.traits.HasExplicitProfileContext()) {
                     weaponMatches.push_back(choice);
                 }
             }
@@ -1115,7 +1195,7 @@ namespace
                     "Power attack: using family-neutral/native BGSAttackData fallback");
             } else {
                 spdlog::info(
-                    "Power attack: explicit TES4 attack families are incompatible with current context");
+                    "Power attack: explicit configured attack families are incompatible with current context");
                 return std::nullopt;
             }
         }
@@ -1244,22 +1324,32 @@ namespace
         }
 
         // The current tes4skyrim behavior generator restores the vanilla-style
-        // combat posture by wrapping TES4 attacks in an outer stance/family
+        // combat posture by wrapping configured converted attacks in an outer stance/family
         // selector and a nested per-family attack state machine.  On entry, the
         // event that activates the outer attack state can be consumed before the
         // newly-active nested machine sees it; its start state is then visible
         // (for the Minotaur this is the back-power clip).
         //
-        // Re-deliver the SAME authored TES4 attack event immediately after the
+        // Re-deliver the SAME authored configured converted attack event immediately after the
         // outer state has accepted it.  No timer, polling, synthetic animation
         // name, or behavior-file patch is involved.  The first delivery activates
         // the converter's attack-family context; the second reaches the now-active
         // nested machine and selects the requested authored attack.
         //
-        // Native Skyrim creature graphs retain the single-delivery path.
+        // Profiles opt into redispatch explicitly; races without such a profile retain the single-delivery path.
         const bool first = SendGraphEvent(player, eventName);
-        if (!first || !eventName.starts_with("attackStart_TES4_")) {
-            return first;
+        if (!first) {
+            return false;
+        }
+
+        const auto* profile = UPC::RaceCatalog::GetAttackFamily(player->GetRace());
+        if (!profile || !profile->redispatchMatchedEvents) {
+            return true;
+        }
+
+        const auto lower = Lower(eventName);
+        if (!MatchesAttackFamilyEvent(lower, profile)) {
+            return true;
         }
 
         player->NotifyAnimationGraph(RE::BSFixedString(eventName.data()));
@@ -1389,6 +1479,73 @@ namespace
         g_attackDataArmedByUCC = false;
     }
 
+    HandEquipState GetHandEquipState(RE::PlayerCharacter* player, bool leftHand);
+    void SyncHandEquipCache(RE::PlayerCharacter* player);
+    const char* HandEquipKindName(const HandEquipState& state);
+
+    RE::BGSEquipSlot* GetHandEquipSlot(bool leftHand)
+    {
+        constexpr RE::FormID kRightHandEquip = 0x00013F42;
+        constexpr RE::FormID kLeftHandEquip = 0x00013F43;
+        return RE::TESForm::LookupByID<RE::BGSEquipSlot>(
+            leftHand ? kLeftHandEquip : kRightHandEquip);
+    }
+
+    bool RestoreTransactionHandTarget(
+        RE::PlayerCharacter* player,
+        bool leftHand,
+        const HandEquipState& targetState)
+    {
+        if (!player || targetState.formID == 0) {
+            return true;
+        }
+
+        const auto current = GetHandEquipState(player, leftHand);
+        if (current.formID == targetState.formID) {
+            return true;
+        }
+
+        auto* equipManager = RE::ActorEquipManager::GetSingleton();
+        auto* slot = GetHandEquipSlot(leftHand);
+        if (!equipManager || !slot) {
+            spdlog::warn(
+                "Hand-equip transaction target restore failed: hand={} form={:08X} equip manager/slot unavailable",
+                leftHand ? "L" : "R",
+                targetState.formID);
+            return false;
+        }
+
+        bool restored = false;
+        if (targetState.kind == HandEquipKind::kSpell) {
+            if (auto* spell = RE::TESForm::LookupByID<RE::SpellItem>(targetState.formID)) {
+                equipManager->EquipSpell(player, spell, slot);
+                restored = GetHandEquipState(player, leftHand).formID == targetState.formID;
+            }
+        } else {
+            if (auto* object = RE::TESForm::LookupByID<RE::TESBoundObject>(targetState.formID)) {
+                equipManager->EquipObject(
+                    player,
+                    object,
+                    nullptr,
+                    1,
+                    slot,
+                    false,
+                    true,
+                    false,
+                    true);
+                restored = GetHandEquipState(player, leftHand).formID == targetState.formID;
+            }
+        }
+
+        spdlog::info(
+            "Hand-equip transaction target restore: hand={} form={:08X} kind={} restored={}",
+            leftHand ? "L" : "R",
+            targetState.formID,
+            HandEquipKindName(targetState),
+            restored);
+        return restored;
+    }
+
     void CompletePendingHandEquipRedraw(
         RE::PlayerCharacter* player,
         std::string_view reason)
@@ -1399,8 +1556,8 @@ namespace
         }
 
         // Never force a draw through an active native spell cast. Preserve the
-        // native-first casting path; a later qualifying equipment transaction can
-        // establish a new preservation cycle if necessary.
+        // native-first casting path; the EndSheathe-owned task remains pending
+        // and can be completed by a later EndSheathe rather than racing a caster.
         const auto casterOwnsSpell = [player](RE::MagicSystem::CastingSource source) {
             auto* caster = player->GetMagicCaster(source);
             return caster && caster->currentSpell != nullptr;
@@ -1415,19 +1572,42 @@ namespace
         }
 
         const auto trigger = g_handEquipTriggerForm;
+        const bool triggerLeft = g_handEquipTriggerLeft;
+
+        // DrawWeaponMagicHands(false) is actor-wide and can temporarily clear
+        // either hand, including the hand whose new equip triggered this reset.
+        // The authoritative post-change snapshot is the transaction target.
+        // Restore that exact target before redraw if the reset disturbed it.
+        RestoreTransactionHandTarget(player, true, g_handEquipTargetLeft);
+        RestoreTransactionHandTarget(player, false, g_handEquipTargetRight);
+
+        // The sheathe/recovery can emit its own TESEquipEvents.  Rebase the cache
+        // on the final authoritative hand state before releasing transaction
+        // ownership so those internal notifications cannot recursively look like
+        // a new user equipment change.
+        SyncHandEquipCache(player);
+
         g_handEquipRedrawPending = false;
         g_handEquipTriggerForm = 0;
+        g_handEquipTriggerLeft = false;
+        g_handEquipTargetLeft = {};
+        g_handEquipTargetRight = {};
 
         player->DrawWeaponMagicHands(true);
         SyncConfiguredWeaponVisual(player, "hand-equip-redraw");
         spdlog::info(
-            "Hand-equip drawn state RESTORE [{}]: trigger={:08X} IsWeaponDrawn={}",
+            "Hand-equip drawn state RESTORE [{}]: hand={} trigger={:08X} IsWeaponDrawn={}",
             reason,
+            triggerLeft ? "L" : "R",
             trigger,
             player->IsWeaponDrawn());
     }
 
-    bool ForceCreatureSheathe(RE::PlayerCharacter* player)
+    bool ForceCreatureSheathe(
+        RE::PlayerCharacter* player,
+        std::optional<bool> recoveryHand = std::nullopt,
+        std::string_view reason = "emergency-chord",
+        bool allowGenericRecovery = true)
     {
         if (!player || g_inputPolicy != CreatureInputPolicy::kUniversalCreature) {
             return false;
@@ -1464,14 +1644,16 @@ namespace
         // If Skyrim's ordinary sheathe request cannot leave the wedged state,
         // rebuild the weapon equip state through ActorEquipManager instead.
         if (!nativeReachedSheathed) {
-            auto* weapon = GetEquippedWeapon(player);
+            auto* weapon = recoveryHand ?
+                GetWeapon(player, *recoveryHand) :
+                (allowGenericRecovery ? GetEquippedWeapon(player) : nullptr);
             auto* equipManager = RE::ActorEquipManager::GetSingleton();
             if (weapon && equipManager) {
                 recoveryAttempted = true;
 
-                // Apply immediately and silently.  Passing no explicit slot lets
-                // Skyrim resolve the weapon's normal equip slot, avoiding hand-
-                // specific assumptions for converted creature graphs.
+                // Apply immediately and silently. Hand-owned recovery re-equips
+                // through that exact hand slot; the explicit emergency chord keeps
+                // the historical generic-slot path.
                 unequipSucceeded = equipManager->UnequipObject(
                     player,
                     weapon,
@@ -1490,12 +1672,14 @@ namespace
                         weapon,
                         nullptr,
                         1,
-                        nullptr,
+                        recoveryHand ? GetHandEquipSlot(*recoveryHand) : nullptr,
                         false,
                         true,
                         false,
                         true);
-                    reequipped = GetEquippedWeapon(player) == weapon;
+                    reequipped = recoveryHand ?
+                        GetWeapon(player, *recoveryHand) == weapon :
+                        GetEquippedWeapon(player) == weapon;
 
                     // A fresh equip should be born sheathed. Ask the native
                     // machinery once more, but never force the ActorState bits.
@@ -1511,7 +1695,8 @@ namespace
 
         const auto finalState = player->GetWeaponState();
         spdlog::info(
-            "Forced sheathe chord: state {} -> nativeRequest={} -> final={} nativeReachedSheathed={} recoveryAttempted={} unequipSucceeded={} reequipped={} IsWeaponDrawn={}",
+            "Forced sheathe [{}]: state {} -> nativeRequest={} -> final={} nativeReachedSheathed={} recoveryAttempted={} unequipSucceeded={} reequipped={} IsWeaponDrawn={}",
+            reason,
             static_cast<std::uint32_t>(before),
             static_cast<std::uint32_t>(afterNativeRequest),
             static_cast<std::uint32_t>(finalState),
@@ -1524,26 +1709,40 @@ namespace
         return finalState == RE::WEAPON_STATE::kSheathed;
     }
 
-    RE::FormID EquippedHandFormID(RE::PlayerCharacter* player, bool leftHand)
+    HandEquipState GetHandEquipState(RE::PlayerCharacter* player, bool leftHand)
     {
+        HandEquipState state{};
         if (!player) {
-            return 0;
+            return state;
         }
+
         auto* form = player->GetEquippedObject(leftHand);
-        return form ? form->GetFormID() : 0;
+        if (!form) {
+            return state;
+        }
+
+        state.formID = form->GetFormID();
+        if (form->As<RE::TESObjectWEAP>()) {
+            state.kind = HandEquipKind::kWeapon;
+        } else if (form->As<RE::SpellItem>()) {
+            state.kind = HandEquipKind::kSpell;
+        } else {
+            state.kind = HandEquipKind::kOther;
+        }
+        return state;
     }
 
     void SyncHandEquipCache(RE::PlayerCharacter* player)
     {
         if (!player || g_inputPolicy != CreatureInputPolicy::kUniversalCreature) {
-            g_cachedLeftHandForm = 0;
-            g_cachedRightHandForm = 0;
+            g_cachedLeftHand = {};
+            g_cachedRightHand = {};
             g_handEquipCacheValid = false;
             return;
         }
 
-        g_cachedLeftHandForm = EquippedHandFormID(player, true);
-        g_cachedRightHandForm = EquippedHandFormID(player, false);
+        g_cachedLeftHand = GetHandEquipState(player, true);
+        g_cachedRightHand = GetHandEquipState(player, false);
         g_handEquipCacheValid = true;
     }
 
@@ -1563,6 +1762,21 @@ namespace
             auto* player = RE::PlayerCharacter::GetSingleton();
             CompletePendingHandEquipRedraw(player, "post-end-sheathe-task");
         });
+    }
+
+    const char* HandEquipKindName(const HandEquipState& state)
+    {
+        switch (state.kind) {
+        case HandEquipKind::kWeapon:
+            return "weapon";
+        case HandEquipKind::kSpell:
+            return "spell";
+        case HandEquipKind::kOther:
+            return "other";
+        case HandEquipKind::kEmpty:
+        default:
+            return "empty";
+        }
     }
 
     void CheckSettledHandEquipment(std::string_view reason)
@@ -1590,50 +1804,102 @@ namespace
         }
 
         g_equipmentCheckPending = false;
-        const auto left = EquippedHandFormID(player, true);
-        const auto right = EquippedHandFormID(player, false);
+        const auto left = GetHandEquipState(player, true);
+        const auto right = GetHandEquipState(player, false);
         if (!g_handEquipCacheValid) {
-            g_cachedLeftHandForm = left;
-            g_cachedRightHandForm = right;
+            g_cachedLeftHand = left;
+            g_cachedRightHand = right;
             g_handEquipCacheValid = true;
             spdlog::info(
-                "TESEquipEvent settled [{}]: hand cache initialized L={:08X} R={:08X}",
-                reason, left, right);
+                "TESEquipEvent settled [{}]: hand cache initialized L={:08X}({}) R={:08X}({})",
+                reason,
+                left.formID, HandEquipKindName(left),
+                right.formID, HandEquipKindName(right));
             return;
         }
 
-        const auto oldLeft = g_cachedLeftHandForm;
-        const auto oldRight = g_cachedRightHandForm;
-        const bool leftChanged = left != oldLeft;
-        const bool rightChanged = right != oldRight;
+        const auto oldLeft = g_cachedLeftHand;
+        const auto oldRight = g_cachedRightHand;
+        const bool leftChanged = left.formID != oldLeft.formID;
+        const bool rightChanged = right.formID != oldRight.formID;
         if (!leftChanged && !rightChanged) {
             spdlog::info(
                 "TESEquipEvent settled [{}]: hands unchanged L={:08X} R={:08X}",
-                reason, left, right);
+                reason, left.formID, right.formID);
             return;
         }
 
-        // Commit the authoritative new state before requesting any graph change.
-        // The sheathe/redraw recovery can itself produce equip notifications; those
-        // later checks must see this final state rather than recurse as new changes.
-        g_cachedLeftHandForm = left;
-        g_cachedRightHandForm = right;
-
-        // For converted creatures, IsWeaponDrawn() is not an authority. Only the
-        // existing ActionEvent-derived ready latch decides whether preservation is
-        // needed. Unknown means we have not observed a valid draw/sheathe action yet.
         const bool wasReady = g_creatureReadyStateKnown && g_creatureReadyState;
-        spdlog::info(
-            "Hand equipment change [equip-event]: L {:08X}->{:08X} R {:08X}->{:08X} ready={} readyKnown={}",
-            oldLeft, left, oldRight, right, wasReady, g_creatureReadyStateKnown);
+        if (leftChanged) {
+            spdlog::info(
+                "Hand equipment change [equip-event]: hand=L {:08X}({})->{:08X}({}) ready={} readyKnown={}",
+                oldLeft.formID, HandEquipKindName(oldLeft),
+                left.formID, HandEquipKindName(left),
+                wasReady, g_creatureReadyStateKnown);
+        }
+        if (rightChanged) {
+            spdlog::info(
+                "Hand equipment change [equip-event]: hand=R {:08X}({})->{:08X}({}) ready={} readyKnown={}",
+                oldRight.formID, HandEquipKindName(oldRight),
+                right.formID, HandEquipKindName(right),
+                wasReady, g_creatureReadyStateKnown);
+        }
 
-        if (!wasReady || g_handEquipRedrawPending) {
+        // A currently owned sheathe/redraw transaction can generate temporary
+        // hand-form changes of its own.  Do not rebase the cache on those internal
+        // states and do not recursively start another repair cycle.
+        if (g_handEquipRedrawPending) {
+            spdlog::info(
+                "Hand equipment change consumed by active graph-reset transaction");
             return;
         }
 
+        // Commit the actual user/menu result before starting a new transaction.
+        g_cachedLeftHand = left;
+        g_cachedRightHand = right;
+
+        if (!wasReady) {
+            return;
+        }
+
+        // Any real hand change while ready still gets the proven actor sheathe ->
+        // EndSheathe -> deferred redraw graph reset.  Snapshot the COMPLETE
+        // authoritative post-change hand state as the transaction target.  This
+        // lets the graph reset transiently clear a newly equipped weapon/spell
+        // without losing the user's requested equipment state.
+        g_handEquipTargetLeft = left;
+        g_handEquipTargetRight = right;
+
+        bool triggerLeft = leftChanged;
+        const HandEquipState& triggerState = triggerLeft ? left : right;
         g_handEquipRedrawPending = true;
-        g_handEquipTriggerForm = leftChanged ? left : right;
-        ForceCreatureSheathe(player);
+        g_handEquipTriggerForm = triggerState.formID;
+        g_handEquipTriggerLeft = triggerLeft;
+
+        spdlog::info(
+            "Hand equipment graph reset: changedL={} changedR={} triggerHand={} trigger={:08X} targetL={:08X} targetR={:08X}",
+            leftChanged,
+            rightChanged,
+            triggerLeft ? "L" : "R",
+            triggerState.formID,
+            g_handEquipTargetLeft.formID,
+            g_handEquipTargetRight.formID);
+
+        // If exactly one changed hand now owns a weapon, scope emergency equip
+        // recovery to that hand. Spell/empty/other changes still get the graph
+        // reset but never borrow the opposite hand's weapon as recovery material.
+        std::optional<bool> recoveryHand = std::nullopt;
+        if (leftChanged && !rightChanged && left.kind == HandEquipKind::kWeapon) {
+            recoveryHand = true;
+        } else if (rightChanged && !leftChanged && right.kind == HandEquipKind::kWeapon) {
+            recoveryHand = false;
+        }
+
+        ForceCreatureSheathe(
+            player,
+            recoveryHand,
+            "hand-equip-graph-reset",
+            recoveryHand.has_value());
         // EndSheathe owns the existing one-shot deferred redraw.
     }
 
@@ -2099,6 +2365,60 @@ namespace
         }
     }
 
+    void ClearInjectedWorkbenchOccupancy(std::string_view reason)
+    {
+        if (!g_workbenchActivationPending) {
+            return;
+        }
+
+        auto* player = RE::PlayerCharacter::GetSingleton();
+        if (!player) {
+            return;
+        }
+
+        auto* process = player->GetActorRuntimeData().currentProcess;
+        if (!process || !process->middleHigh) {
+            spdlog::warn(
+                "Crafting cleanup [{}]: MiddleHighProcessData unavailable", reason);
+            return;
+        }
+
+        auto occupied = process->middleHigh->occupiedFurniture.get();
+        auto expected = g_pendingWorkbenchRef.get();
+        if (!occupied) {
+            return;
+        }
+
+        // UPC never performs the normal furniture-enter transaction for this
+        // workaround; it only lends CraftingMenu the workstation handle. Clear
+        // only the exact handle UPC injected, so unrelated real furniture state
+        // is never disturbed.
+        if (expected && occupied->GetFormID() != expected->GetFormID()) {
+            spdlog::warn(
+                "Crafting cleanup [{}]: occupiedFurniture {:08X} differs from injected {:08X}; left untouched",
+                reason,
+                occupied->GetFormID(),
+                expected->GetFormID());
+            return;
+        }
+
+        const auto cleared = occupied->GetFormID();
+        process->middleHigh->occupiedFurniture = {};
+        spdlog::info(
+            "Crafting cleanup [{}]: cleared injected occupiedFurniture {:08X}",
+            reason,
+            cleared);
+    }
+
+    void ResetPendingWorkbenchContext(std::string_view reason)
+    {
+        ClearInjectedWorkbenchOccupancy(reason);
+        g_workbenchActivationPending = false;
+        g_pendingBenchType =
+            RE::TESFurniture::WorkBenchData::BenchType::kNone;
+        g_pendingWorkbenchRef = {};
+    }
+
     void SetPendingWorkbenchAsOccupiedFurniture()
     {
         if (!CreatureControlsActive() || !g_workbenchActivationPending) {
@@ -2177,6 +2497,7 @@ namespace
         if (!g_originalCraftingMenuCreate) {
             spdlog::error(
                 "Crafting factory hook: original creator is null");
+            ResetPendingWorkbenchContext("factory-original-null");
             return nullptr;
         }
 
@@ -2190,6 +2511,7 @@ namespace
         if (!created) {
             spdlog::warn(
                 "Crafting factory hook: vanilla creator returned null");
+            ResetPendingWorkbenchContext("factory-create-failed");
             return nullptr;
         }
 
@@ -2198,6 +2520,7 @@ namespace
         if (!crafting) {
             spdlog::warn(
                 "Crafting factory hook: creator returned non-CraftingMenu");
+            ResetPendingWorkbenchContext("factory-wrong-menu");
             return created;
         }
 
@@ -2251,10 +2574,10 @@ namespace
             return false;
         }
 
-        g_workbenchActivationPending = false;
-        g_pendingBenchType =
-            RE::TESFurniture::WorkBenchData::BenchType::kNone;
-        g_pendingWorkbenchRef = {};
+        // Recover any prior injected workstation context before capturing a new
+        // one. This also makes repeated activations self-healing if a prior menu
+        // close was interrupted before its close event reached UPC.
+        ResetPendingWorkbenchContext("new-activation");
 
         auto* pick = RE::CrosshairPickData::GetSingleton();
         if (!pick) {
@@ -2294,6 +2617,7 @@ namespace
         if (!InstallCraftingMenuFactoryHook()) {
             spdlog::error(
                 "Crafting activation: factory hook unavailable");
+            ResetPendingWorkbenchContext("factory-hook-unavailable");
             return true;
         }
 
@@ -2310,6 +2634,10 @@ namespace
             spdlog::info(
                 "Crafting Menu show queued with preloaded workstation {:08X}",
                 target->GetFormID());
+        } else {
+            spdlog::error(
+                "Crafting activation: UI message queue unavailable");
+            ResetPendingWorkbenchContext("show-queue-unavailable");
         }
 
         return true;
@@ -2335,24 +2663,30 @@ namespace
             }
         }
 
-        if (!CreatureControlsActive() ||
-            event->menuName != RE::CraftingMenu::MENU_NAME) {
+        if (event->menuName != RE::CraftingMenu::MENU_NAME) {
             return;
         }
 
-        if (event->opening) {
-            spdlog::info("Crafting Menu open event received");
-            if (auto* ui = RE::UI::GetSingleton()) {
-                auto menu = ui->GetMenu<RE::CraftingMenu>();
-                if (menu) {
-                    InjectWorkbenchContextIntoCraftingMenu(menu.get());
-                }
+        if (!event->opening) {
+            // The workaround forged AIProcess::occupiedFurniture only so the
+            // vanilla CraftingMenu factory could discover the workstation. It is
+            // not a real furniture interaction and MUST be removed when the menu
+            // closes; otherwise Skyrim continues to treat the player as occupied
+            // and later menus/input can remain blocked.
+            ResetPendingWorkbenchContext("menu-close");
+            return;
+        }
+
+        if (!CreatureControlsActive()) {
+            return;
+        }
+
+        spdlog::info("Crafting Menu open event received");
+        if (auto* ui = RE::UI::GetSingleton()) {
+            auto menu = ui->GetMenu<RE::CraftingMenu>();
+            if (menu) {
+                InjectWorkbenchContextIntoCraftingMenu(menu.get());
             }
-        } else {
-            g_workbenchActivationPending = false;
-            g_pendingBenchType =
-                RE::TESFurniture::WorkBenchData::BenchType::kNone;
-            g_pendingWorkbenchRef = {};
         }
     }
 
@@ -3174,9 +3508,10 @@ namespace UCCCore
             return;
         }
 
-        // Both equip and unequip events are meaningful notifications. Never filter
-        // on event->equipped or baseObject type; the settled hand comparison decides
-        // whether this activity actually changed either hand.
+        // Both equip and unequip events are meaningful notifications. Do not infer
+        // the affected hand from baseObject here; the settled hand-local snapshot
+        // decides which hand actually changed. Graph reset eligibility is based on
+        // authoritative ready state, not object type.
         if (g_handEquipMenuOpen) {
             g_equipmentCheckPending = true;
             return;
